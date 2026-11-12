@@ -41,6 +41,8 @@ class PanelAnalizador(Horizontal):
             yield Select([("Cercania al 0,0", "distancia"), ("Margen (mas holgado)", "margen")],
                          value="distancia", allow_blank=False, id="orden")
             yield Button("Analizar", variant="success", id="go")
+            yield Button("Cargar analisis guardado", id="cargar", disabled=True)
+            yield Static("", id="guardado", classes="info")
             yield Static("Busca todos los grupos cuyas cajas entran juntas en el radio de activacion alrededor de un "
                          "punto AFK. Abajo: las mejores opciones de cada tipo encontrado (cuadruples, triples, dobles).\n\n"
                          "Resultados completos en <archivo>.grupos.json y .grupos.csv.", classes="info")
@@ -69,6 +71,39 @@ class PanelAnalizador(Horizontal):
 
     def detener(self):
         pass
+
+    @on(Input.Changed, "#entrada")
+    def _entrada_cambio(self, ev):
+        self._actualizar_guardado(ev.value)
+
+    def _actualizar_guardado(self, valor):
+        """Si ese archivo ya tiene un analisis guardado, habilitar 'Cargar' y decir de cuando es."""
+        info = None
+        ent = valor.strip()
+        if ent:
+            try:
+                info = analizador.guardado(ent)
+            except (OSError, ValueError):
+                info = None
+        self.query_one("#cargar", Button).disabled = info is None
+        txt = ""
+        if info:
+            txt = (f"Hay un analisis guardado{' (de la version limpia)' if info['limpio'] else ''}: "
+                   f"{(info['fecha'] or '?')[:16].replace('T', ' ')}, {info['kb']:,.0f} KB.")
+            if info["desactualizado"]:
+                txt += "\n[yellow]El archivo de datos cambio despues de ese analisis: conviene re-analizar.[/yellow]"
+        self.query_one("#guardado", Static).update(txt)
+
+    @on(Button.Pressed, "#cargar")
+    def cargar_guardado(self):
+        ent = self.query_one("#entrada", Input).value.strip()
+        try:
+            r = analizador.cargar_resultado(ent)
+        except (OSError, ValueError, KeyError) as e:
+            self.query_one("#resumen", Static).update(f"[red]No se pudo cargar:[/red] {e}")
+            return
+        self._mostrar(r)
+        self.notify("Analisis cargado del archivo (sin recalcular)", title="Cargado")
 
     @on(Button.Pressed, "#go")
     def ejecutar(self):
@@ -109,6 +144,15 @@ class PanelAnalizador(Horizontal):
             if self.al_terminar:
                 self.al_terminar(None)
             return
+        self._mostrar(r)
+        self._actualizar_guardado(self.query_one("#entrada", Input).value)
+        conteo = ", ".join(f"{v:,} {analizador.nombre_tam(int(k))}s" for k, v in r["conteo"].items()) or "ninguno"
+        self.notify(f"Grupos: {conteo}", title="Analisis terminado")
+        if self.al_terminar:
+            self.al_terminar(r)
+
+    def _mostrar(self, r):
+        """Pinta un resultado (recien calculado o cargado de disco)."""
         self.res = r
         conteo = ", ".join(f"[b]{v:,}[/b] {analizador.nombre_tam(int(k))}s" for k, v in r["conteo"].items()) or "ninguno"
         aviso = ""
@@ -116,6 +160,10 @@ class PanelAnalizador(Horizontal):
             aviso = f"\n[yellow]Ojo: el escaneo de origen esta '{r['fuente_estado']}': faltan zonas del mapa.[/yellow]"
         if not r["caja"]["exacta"]:
             aviso += f"\n[yellow]Caja aproximada: {r['caja']['nota']}[/yellow]"
+        if r.get("cargado"):
+            aviso += f"\n[cyan]Cargado de disco (analisis del {str(r.get('fecha', '?'))[:16].replace('T', ' ')}).[/cyan]"
+            if r.get("desactualizado"):
+                aviso += " [yellow]Los datos cambiaron despues: conviene re-analizar.[/yellow]"
         if r["mejor_tam"]:
             t = r["mejor_tam"]
             faltan = ""
@@ -140,9 +188,6 @@ class PanelAnalizador(Horizontal):
         self._pintar_mejores(r)
         if self._filas:
             self._detalle(0)
-        self.notify(f"Grupos: {conteo}".replace("[b]", "").replace("[/b]", ""), title="Analisis terminado")
-        if self.al_terminar:
-            self.al_terminar(r)
 
     def _pintar_mejores(self, r):
         """Un recuadro por tipo encontrado (de mayor a menor) con sus mejores opciones y el /tp de cada una."""

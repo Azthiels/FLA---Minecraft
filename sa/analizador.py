@@ -226,15 +226,16 @@ def analizar(entrada, radio=None, lado=None, minimo=2, orden="distancia", progre
     for t in sorted(conteo, reverse=True):
         mejores[str(t)] = ([g for g in grandes if g["tam"] == t][:5] if t >= 3 else dobles.dicts(x, z, b, nb, r, 0, 5))
     res = {
+        "fecha": util.ahora(),                       # primero: guardado() lo lee sin cargar todo el archivo
         "seed": meta.get("seed"), "version": ver, "estructura": (meta.get("structure") or {}).get("name"),
         "dimension": meta.get("dimension"), "fuente": meta.get("_archivo"), "fuente_estado": meta.get("status"),
         "estructuras_leidas": int(len(arr)), "pares": int(npares),
         "radio": r, "caja": {"lado": l, "offset": off, "exacta": caja.exacta, "nota": caja.nota},
         "maximo_teorico": teorico, "conteo": {str(k): conteo[k] for k in sorted(conteo, reverse=True)},
-        "mejor_tam": mejor_tam, "orden": orden,
+        "mejor_tam": mejor_tam, "orden": orden, "minimo": minimo,
         "recomendados": [g for g in tope if g["tam"] == mejor_tam][:10], "mejores": mejores,
         "total_grupos": len(grandes) + len(dobles), "grupos": tope,
-        "segundos": round(time.time() - t0, 3), "fecha": util.ahora(),
+        "segundos": round(time.time() - t0, 3),
     }
     if guardar:
         prog(0.95, "guardando")
@@ -266,6 +267,62 @@ def guardar_resultado(res, entrada, grandes=None, dobles=None, xzr=None):
                                     xi.tolist(), zi.tolist(), xj.tolist(), zj.tolist())))
     res["archivos"] = {"json": str(rt["grupos"]), "csv": str(rt["csv"])}
     return res["archivos"]
+
+
+def _ruta_json(ruta):
+    """El .grupos.json de ese archivo; si no hay, el de su version limpia (<base>_limpio), que es lo que se analiza
+    cuando el escaneo fue en modo "todas"."""
+    from pathlib import Path
+    p = Path(ruta)
+    if p.name.endswith(".grupos.json"):
+        return p
+    j = datos.rutas(p)["grupos"]
+    if not j.exists():
+        b = datos.rutas(p)["datos"]
+        alt = datos.rutas(b.with_name(b.stem + "_limpio"))["grupos"]
+        if alt.exists():
+            return alt
+    return j
+
+
+def guardado(ruta):
+    """Info del analisis guardado para ese archivo (o None si no hay): fecha, tamano, desactualizado."""
+    import datetime
+    j = _ruta_json(ruta)
+    if not j.exists():
+        return None
+    try:
+        with open(j, encoding="utf-8") as f:
+            cab = f.read(4096)                       # el resumen esta al principio: no hace falta leer todo
+        fecha = cab.split('"fecha":"', 1)[1].split('"', 1)[0] if '"fecha":"' in cab else None
+        if not fecha:                                # guardado por una version anterior (fecha al final)
+            fecha = datetime.datetime.fromtimestamp(j.stat().st_mtime).astimezone().isoformat(timespec="seconds")
+    except OSError:
+        return None
+    d = datos.rutas(j)["datos"]
+    viejo = d.exists() and d.stat().st_mtime > j.stat().st_mtime
+    return {"json": str(j), "fecha": fecha, "kb": j.stat().st_size / 1024, "desactualizado": viejo,
+            "limpio": j.name.endswith("_limpio.grupos.json") and not str(ruta).endswith("_limpio.sab")}
+
+
+def cargar_resultado(ruta):
+    """Lee el analisis guardado (<base>.grupos.json) sin recalcular. Acepta el .sab, la base o el .grupos.json."""
+    j = _ruta_json(ruta)
+    res = json.loads(j.read_text(encoding="utf-8"))
+    res.setdefault("total_grupos", len(res.get("grupos", [])))
+    if "mejores" not in res:                         # guardado por una version anterior: armarlo desde el top
+        mejores = {}
+        for g in res.get("grupos", []):
+            lst = mejores.setdefault(str(g["tam"]), [])
+            if len(lst) < 5:
+                lst.append(g)
+        res["mejores"] = {k: mejores[k] for k in sorted(mejores, key=int, reverse=True)}
+    res["archivos"] = {"json": str(j), "csv": str(datos.rutas(j)["csv"])}
+    info = guardado(j)
+    res["cargado"] = True
+    res["desactualizado"] = bool(info and info["desactualizado"])
+    res.setdefault("fecha", info["fecha"] if info else None)
+    return res
 
 
 def resumen_texto(res, n=5):

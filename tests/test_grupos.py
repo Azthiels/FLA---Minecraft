@@ -96,6 +96,20 @@ def t_analizador():
     # cadena A-B-C donde A y C no entran juntas: dos dobles, no una triple
     r4 = analizador.analizar(_sab("ana4", [(0, 0), (200, 0), (400, 0)]), radio=128)
     check("analizador: cadena A-B-C (A y C lejos) -> 2 dobles", r4["conteo"] == {"2": 2}, str(r4["conteo"]))
+    c = analizador.cargar_resultado(p)                   # recargar sin recalcular
+    check("cargar analisis guardado == recien calculado (conteo, mejores, grupos)",
+          c["conteo"] == r["conteo"] and c["mejores"] == r["mejores"] and c["grupos"] == r["grupos"] and c["cargado"]
+          and not c["desactualizado"])
+    info = analizador.guardado(p)
+    check("guardado(): encuentra el analisis y su fecha", info is not None and info["fecha"] == r["fecha"])
+    viejo = dict(json.loads(datos.rutas(p)["grupos"].read_text(encoding="utf-8")))   # formato anterior: sin "mejores"
+    viejo.pop("mejores")
+    datos.rutas(p)["grupos"].write_text(json.dumps(viejo), encoding="utf-8")
+    c2 = analizador.cargar_resultado(p)
+    check("cargar formato anterior (sin 'mejores'): se arma desde el top", list(c2["mejores"]) == ["4", "3", "2"])
+    import os, time as _t
+    _t.sleep(0.05); os.utime(datos.rutas(p)["datos"])  # los datos cambian despues del analisis
+    check("guardado(): avisa si los datos cambiaron despues del analisis", analizador.guardado(p)["desactualizado"])
     lim = limpiador.limpiar(_sab("lim", quad + triple + doble + sueltas + casi), TMP / "lim_out", radio=128)
     check("limpiador: descarta solo las aisladas (3 sueltas + 2 casi)", lim["quedan"] == 9 and lim["descartadas"] == 5,
           f"quedan {lim['quedan']}")
