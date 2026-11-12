@@ -38,11 +38,17 @@ class PanelLimpiador(Horizontal):
     def cargar(self, ruta):
         self.query_one("#entrada", Input).value = str(ruta)
 
+    def prefijar(self, radio=None, lado=None):
+        if radio is not None:
+            self.query_one("#radio", Input).value = str(radio)
+        if lado is not None:
+            self.query_one("#lado", Input).value = str(lado)
+
     def detener(self):
         pass   # la limpieza es corta y no deja archivos a medias (escritura atomica)
 
     @on(Button.Pressed, "#go")
-    def _go(self):
+    def ejecutar(self):
         if self.corriendo:
             return
         try:

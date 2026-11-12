@@ -23,6 +23,7 @@ def _args():
     p.add_argument("--sin-clima", dest="clima", action="store_false", default=None, help="desactivar el prefiltro de clima")
     p.add_argument("--sobrescribir", action="store_true")
     p.add_argument("--iniciar", action="store_true", help="arrancar el escaneo apenas abre")
+    p.add_argument("--auto", action="store_true", help="modo auto: al terminar, limpiar y analizar solo")
     return {k: v for k, v in vars(p.parse_args()).items() if v is not None}
 
 

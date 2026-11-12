@@ -9,11 +9,15 @@ from textual.widgets import Button, DataTable, Input, Label, ProgressBar, Select
 from sa import config, analizador
 from sa.tui.comunes import entero
 
+MEJORES_POR_TIPO = 3     # opciones que muestra cada recuadro de abajo (el JSON guarda 5 por tipo)
+
 
 class PanelAnalizador(Horizontal):
     DEFAULT_CSS = """
-    PanelAnalizador #detalle { height: auto; max-height: 12; border: round $secondary; padding: 0 1; margin-top: 1; }
-    PanelAnalizador #resumen { height: auto; max-height: 16; }
+    PanelAnalizador #resumen { height: auto; max-height: 12; }
+    PanelAnalizador #abajo { height: 13; margin-top: 1; }
+    PanelAnalizador .caja_mejor { width: 1fr; height: 100%; border: round $success; padding: 0 1; }
+    PanelAnalizador #detalle { width: 1fr; height: 100%; border: round $secondary; padding: 0 1; }
     """
 
     def __init__(self, **kw):
@@ -21,6 +25,7 @@ class PanelAnalizador(Horizontal):
         self.corriendo = False
         self.res = None
         self._filas = []
+        self.al_terminar = None   # callback(resultado) que pone la App (modo auto)
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="form"):
@@ -37,27 +42,36 @@ class PanelAnalizador(Horizontal):
                          value="distancia", allow_blank=False, id="orden")
             yield Button("Analizar", variant="success", id="go")
             yield Static("Busca todos los grupos cuyas cajas entran juntas en el radio de activacion alrededor de un "
-                         "punto AFK, y recomienda el mejor que tenga el mundo (si no hay cuadruples, la mejor triple o "
-                         "doble).\n\nResultados completos en <archivo>.grupos.json y .grupos.csv.", classes="info")
+                         "punto AFK. Abajo: las mejores opciones de cada tipo encontrado (cuadruples, triples, dobles).\n\n"
+                         "Resultados completos en <archivo>.grupos.json y .grupos.csv.", classes="info")
         with Vertical(classes="derecha"):
             yield Static("Elegi un archivo y presiona Analizar.", id="resumen", classes="estado")
             yield ProgressBar(total=100, show_eta=False, id="bar")
             yield DataTable(id="tabla")
-            yield VerticalScroll(Static("", id="txt_detalle"), id="detalle")
+            with Horizontal(id="abajo"):
+                yield VerticalScroll(Static("", id="txt_detalle"), id="detalle")
 
     def on_mount(self):
         t = self.query_one("#tabla", DataTable)
         t.add_columns("Tipo", "AFK X", "AFK Z", "Margen", "Dist. 0,0", "Estructuras")
         t.cursor_type = "row"
+        self.query_one("#detalle").border_title = "Seleccionado"
 
+    # ---------- API para la App (modo auto) ----------
     def cargar(self, ruta):
         self.query_one("#entrada", Input).value = str(ruta)
+
+    def prefijar(self, radio=None, lado=None):
+        if radio is not None:
+            self.query_one("#radio", Input).value = str(radio)
+        if lado is not None:
+            self.query_one("#lado", Input).value = str(lado)
 
     def detener(self):
         pass
 
     @on(Button.Pressed, "#go")
-    def _go(self):
+    def ejecutar(self):
         if self.corriendo:
             return
         try:
@@ -92,6 +106,8 @@ class PanelAnalizador(Horizontal):
         self.query_one("#go", Button).label = "Analizar"
         if err:
             self.query_one("#resumen", Static).update(f"[red]Error:[/red] {err}")
+            if self.al_terminar:
+                self.al_terminar(None)
             return
         self.res = r
         conteo = ", ".join(f"[b]{v:,}[/b] {analizador.nombre_tam(int(k))}s" for k, v in r["conteo"].items()) or "ninguno"
@@ -102,13 +118,10 @@ class PanelAnalizador(Horizontal):
             aviso += f"\n[yellow]Caja aproximada: {r['caja']['nota']}[/yellow]"
         if r["mejor_tam"]:
             t = r["mejor_tam"]
-            g = r["recomendados"][0]
             faltan = ""
             if r["maximo_teorico"] and t < min(r["maximo_teorico"], 4):
                 faltan = f" (no hay {analizador.nombre_tam(t + 1)}s en lo escaneado)"
-            rec = (f"Recomendacion: [b green]{analizador.nombre_tam(t)}[/b green]{faltan}\n"
-                   f"  AFK en X [b]{g['afk'][0]}[/b], Z [b]{g['afk'][1]}[/b]  (margen {g['margen']} bloques, "
-                   f"a {g['dist_origen']:,.0f} del 0,0)")
+            rec = f"Lo mejor de este mundo: [b green]{analizador.nombre_tam(t)}[/b green]{faltan}"
         else:
             rec = "[red]No hay ningun grupo:[/red] ninguna estructura se puede activar junto con otra con ese radio."
         self.query_one("#resumen", Static).update(
@@ -121,12 +134,33 @@ class PanelAnalizador(Horizontal):
         t.clear()
         self._filas = r["grupos"][:config.TOP_GRUPOS]
         for g in self._filas:
-            t.add_row(analizador.nombre_tam(g["tam"]), str(g["afk"][0]), str(g["afk"][1]), f"{g['margen']:.1f}",
+            t.add_row(analizador.nombre_tam(g["tam"]), str(g["afk"][0]), str(g["afk"][1]), f"{g['margen']:.2f}",
                       f"{g['dist_origen']:,.0f}", "  ".join(f"{e['x']},{e['z']}" for e in g["estructuras"]))
         t.border_title = f"{len(self._filas):,} de {r.get('total_grupos', len(r['grupos'])):,} grupos (todos en el .csv)"
+        self._pintar_mejores(r)
         if self._filas:
             self._detalle(0)
         self.notify(f"Grupos: {conteo}".replace("[b]", "").replace("[/b]", ""), title="Analisis terminado")
+        if self.al_terminar:
+            self.al_terminar(r)
+
+    def _pintar_mejores(self, r):
+        """Un recuadro por tipo encontrado (de mayor a menor) con sus mejores opciones y el /tp de cada una."""
+        abajo = self.query_one("#abajo", Horizontal)
+        for w in list(abajo.query(".caja_mejor")):
+            w.remove()
+        orden = "mas cercanas al 0,0" if r.get("orden") == "distancia" else "con mas margen"
+        detalle = self.query_one("#detalle")
+        for k, lista in r.get("mejores", {}).items():
+            lineas = []
+            for n, g in enumerate(lista[:MEJORES_POR_TIPO], 1):
+                lineas.append(f"[b]{n}. AFK {g['afk'][0]}, {g['afk'][1]}[/b]\n"
+                              f"   margen {g['margen']:.2f} - a {g['dist_origen']:,.0f} del 0,0\n"
+                              f"   [dim]/tp @s {g['afk'][0]} ~ {g['afk'][1]}[/dim]")
+            caja = VerticalScroll(Static("\n".join(lineas)), classes="caja_mejor")
+            caja.border_title = f"Mejores {analizador.nombre_tam(int(k))}s ({r['conteo'].get(k, 0):,})"
+            caja.border_subtitle = orden
+            abajo.mount(caja, before=detalle)
 
     @on(DataTable.RowHighlighted, "#tabla")
     def _fila(self, ev):
@@ -139,6 +173,6 @@ class PanelAnalizador(Horizontal):
         g = self._filas[i]
         est = "\n".join(f"  {k + 1}. X {e['x']}, Z {e['z']}  ({e['bioma']})" for k, e in enumerate(g["estructuras"]))
         self.query_one("#txt_detalle", Static).update(
-            f"[b]{analizador.nombre_tam(g['tam']).title()}[/b]  ->  AFK en el bloque X {g['afk'][0]}, Z {g['afk'][1]}\n"
-            f"Esquina mas lejana a {g['dist_max']} bloques (margen {g['margen']})\n{est}\n"
+            f"[b]{analizador.nombre_tam(g['tam']).title()}[/b] -> AFK X {g['afk'][0]}, Z {g['afk'][1]}\n"
+            f"Esquina mas lejana a {g['dist_max']} (margen {g['margen']})\n{est}\n"
             f"[dim]/tp @s {g['afk'][0]} ~ {g['afk'][1]}[/dim]")

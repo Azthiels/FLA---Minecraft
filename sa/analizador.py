@@ -222,6 +222,9 @@ def analizar(entrada, radio=None, lado=None, minimo=2, orden="distancia", progre
     teorico = estructuras.maximo_teorico(sid, ver, r, l) if sid is not None and ver else None
     mejor_tam = max(conteo) if conteo else 0
     tope = grandes[:top] + dobles.dicts(x, z, b, nb, r, 0, max(0, top - len(grandes)))
+    mejores = {}                                     # las mejores opciones de CADA tamano encontrado
+    for t in sorted(conteo, reverse=True):
+        mejores[str(t)] = ([g for g in grandes if g["tam"] == t][:5] if t >= 3 else dobles.dicts(x, z, b, nb, r, 0, 5))
     res = {
         "seed": meta.get("seed"), "version": ver, "estructura": (meta.get("structure") or {}).get("name"),
         "dimension": meta.get("dimension"), "fuente": meta.get("_archivo"), "fuente_estado": meta.get("status"),
@@ -229,7 +232,7 @@ def analizar(entrada, radio=None, lado=None, minimo=2, orden="distancia", progre
         "radio": r, "caja": {"lado": l, "offset": off, "exacta": caja.exacta, "nota": caja.nota},
         "maximo_teorico": teorico, "conteo": {str(k): conteo[k] for k in sorted(conteo, reverse=True)},
         "mejor_tam": mejor_tam, "orden": orden,
-        "recomendados": [g for g in tope if g["tam"] == mejor_tam][:10],
+        "recomendados": [g for g in tope if g["tam"] == mejor_tam][:10], "mejores": mejores,
         "total_grupos": len(grandes) + len(dobles), "grupos": tope,
         "segundos": round(time.time() - t0, 3), "fecha": util.ahora(),
     }

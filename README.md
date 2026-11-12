@@ -66,9 +66,14 @@ lejos con los parametros conocidos, no pueden ganar. Es una **cota exacta**, no 
   con 8 hilos (~6 minutos para las 13 700 M de regiones; antes ~4 horas).
 * `tests`: `t_clima_cobertura` (prueba de cobertura) y `t_clima_equivalencia` (on == off en 11 casos x 2 modos).
 
-## Linea de comandos
-    python main.py --seed 6283985518325545008 --version 26.3 --estructura 3 --salida mundo_witch_huts --iniciar
-Completa el formulario y arranca el escaneo (`python main.py --help` para todas las opciones).
+## Modo auto y linea de comandos
+Con el checkbox **Modo auto (1 -> 2 -> 3)** del escaner, al terminar un escaneo completo se limpia (solo en modo
+"todas"; en modo grupos ya sale limpio) y se analiza solo, y avisa con una notificacion del sistema con el mejor
+grupo. En la pestana 3, abajo, hay un recuadro por tipo encontrado (cuadruples, triples, dobles) con sus mejores
+opciones y el `/tp` de cada una, mas el detalle del grupo seleccionado en la tabla.
+
+    python main.py --seed 6283985518325545008 --version 26.3 --estructura 3 --salida mundo_witch_huts --auto --iniciar
+Completa el formulario y arranca (`python main.py --help` para todas las opciones).
 
 ## Analizador a gran escala
 * Los pares cuyas dos estructuras no tienen ninguna otra vecina (grado 1) son dobles maximales seguras: se
