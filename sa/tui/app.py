@@ -9,7 +9,7 @@ from sa.tui.limpiador import PanelLimpiador
 
 
 class StructureAnalyzer(App):
-    TITLE = "Structure Analyzer"
+    TITLE = "FLA - Farm Locator Azthiels"
     CSS = FORM_CSS + """
     .fila { height: auto; }
     .fila Vertical { height: auto; width: 1fr; }

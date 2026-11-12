@@ -1,4 +1,5 @@
-# Structure Analyzer (Minecraft): escaner + limpiador + analizador de grupos
+# FLA - Minecraft (Farm Locator Azthiels): escaner + limpiador + analizador de grupos
+Repo: https://github.com/Azthiels/FLA---Minecraft (rama main). El paquete Python se sigue llamando `sa/`.
 
 Proyecto personal de Azthiels (Cordoba, Argentina, UTC-3). Comunicacion en espanol.
 El `README.md` tiene la documentacion tecnica (arquitectura, formato, modo grupos). Leelo antes de tocar el motor.
@@ -50,5 +51,9 @@ python build_lib.py               # recompilar lib/ si cambia cubiomes_src (en e
 - Hecho: prefiltro de clima 1.18+ (`shim.c: clima_posible`, `sa/clima.py`), exacto por cota de vecino mas cercano;
   depende de que las hojas de superficie cubran toda la caja de clima (se verifica por version; en 26.2 no, se apaga).
   Si se toca, correr `python -m tests clima`. Witch Hut mundo completo: ~6 min con 8 hilos.
+- Hecho: analizador a gran escala (dobles de grado 1 en numpy, grafo solo para grado >= 2, subgrupos por soporte
+  del circulo minimo). Tests: nunca escanear el mundo completo (areas chicas); el runner corta tests de > 300 s.
+- Resultado real (seed 6283985518325545008, 26.3, mundo completo): 4,34 M huts agrupables, 243 triples, 0 cuadruples.
 - Ideas siguientes: extender el prefiltro a Village/Outpost/Monument (chequeos de bioma multiples), rotacion real.
-- Git: repo local inicializado (rama main). Sin remoto todavia. `.gitignore` excluye datos (.sab/.jsonl/meta), lib/ y _viejo/.
+- Git: rama main, remoto origin = GitHub (arriba). Identidad noreply de GitHub (el push con email real esta
+  bloqueado por la cuenta). `.gitignore` excluye datos (.sab/.jsonl/meta), lib/ y _viejo/.

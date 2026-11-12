@@ -123,7 +123,7 @@ class PanelAnalizador(Horizontal):
         for g in self._filas:
             t.add_row(analizador.nombre_tam(g["tam"]), str(g["afk"][0]), str(g["afk"][1]), f"{g['margen']:.1f}",
                       f"{g['dist_origen']:,.0f}", "  ".join(f"{e['x']},{e['z']}" for e in g["estructuras"]))
-        t.border_title = f"{len(self._filas):,} de {len(r['grupos']):,} grupos"
+        t.border_title = f"{len(self._filas):,} de {r.get('total_grupos', len(r['grupos'])):,} grupos (todos en el .csv)"
         if self._filas:
             self._detalle(0)
         self.notify(f"Grupos: {conteo}".replace("[b]", "").replace("[/b]", ""), title="Analisis terminado")

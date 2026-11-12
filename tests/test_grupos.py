@@ -1,5 +1,5 @@
 """Partes 2 y 3 + modo grupos: escaner(grupos) == escaner(todas) + limpiador, geometria exacta, analizador, formato."""
-import itertools, json, math, random
+import csv, itertools, json, math, random
 
 import numpy as np
 
@@ -150,4 +150,80 @@ def t_clima_equivalencia():
               f"{len(a)} registros")
 
 
-PRUEBAS = [t_geometria, t_analizador, t_formato, t_clima_cobertura, t_clima_equivalencia, t_grupos_equivalencia]
+def t_afk_vectorizado():
+    """afk_pares (numpy) == punto_afk (escalar) bit a bit, con distintos lados, offsets y radios."""
+    random.seed(11)
+    malos, n = 0, 0
+    for lado, off, R in ((9, 0, 128), (16, 0, 128), (58, -21, 128), (21, 0, 100), (1, 0, 24), (16, 0, 200)):
+        x1 = [random.randint(-3 * 10 ** 7, 3 * 10 ** 7) for _ in range(4000)]
+        z1 = [random.randint(-3 * 10 ** 7, 3 * 10 ** 7) for _ in range(4000)]
+        x2 = [a + random.randint(-2 * R, 2 * R) for a in x1]; z2 = [a + random.randint(-2 * R, 2 * R) for a in z1]
+        bx, bz, d2, ok = geometria.afk_pares(np.array(x1), np.array(z1), np.array(x2), np.array(z2), R, off, lado)
+        for k in range(len(x1)):
+            n += 1
+            ref = geometria.punto_afk([(x1[k], z1[k]), (x2[k], z2[k])], R, off, lado)
+            got = (int(bx[k]), int(bz[k]), math.sqrt(d2[k]), R - math.sqrt(d2[k])) if ok[k] else None
+            if ref != got:
+                malos += 1
+    check("AFK de pares vectorizado == escalar (bit a bit)", malos == 0, f"{malos} distintos de {n:,}")
+
+
+def t_subgrupos():
+    """Subgrupos maximales de un clique que no entra: ramificar por el soporte == fuerza bruta (todos los subconjuntos)."""
+    random.seed(9)
+    malos = 0
+    for caso in range(300):
+        lado, R = random.choice([(9, 128), (16, 128), (21, 100), (1, 40)])
+        k = random.randint(3, 9)
+        pts = list({(random.randint(0, 2 * R), random.randint(0, 2 * R)) for _ in range(k)})
+        x = np.array([p[0] for p in pts]); z = np.array([p[1] for p in pts]); b = np.zeros(len(pts), int)
+        ids = tuple(range(len(pts)))
+        if geometria.punto_afk(pts, R, 0, lado):
+            continue                                     # el clique entero entra: no aplica
+        bruto = []
+        for t in range(len(ids) - 1, 1, -1):
+            for sub in itertools.combinations(ids, t):
+                if not any(set(sub) <= s for s in bruto) and geometria.punto_afk([pts[i] for i in sub], R, 0, lado):
+                    bruto.append(set(sub))
+        got = [set(g["_ids"]) for g in analizador._subgrupos(ids, x, z, b, R, 0, lado, {})]
+        got = [s for s in got if not any(s < o for o in got)]
+        if sorted(map(sorted, got)) != sorted(map(sorted, bruto)):
+            malos += 1
+    check("subgrupos maximales (ramificar por soporte) == fuerza bruta (300 casos)", malos == 0, f"{malos} distintos")
+
+
+def _firma(res):
+    return sorted((g["tam"], tuple(g["afk"]), g["margen"], tuple(sorted((e["x"], e["z"]) for e in g["estructuras"])))
+                  for g in res["grupos"])
+
+
+def t_analizador_rapido():
+    """Analizador rapido (dobles aisladas en numpy) == todo por el grafo, en estructuras de densidad muy distinta."""
+    casos = [("swamp_hut grupos", "26.3", 3, 300000, dict(modo="grupos"), {}),
+             ("village todas", "26.3", 5, 40000, {}, {}),
+             ("monument todas", "26.3", 8, 60000, {}, {}),
+             ("buried_treasure todas (denso)", "26.3", 14, 4000, {}, {"radio": 128}),
+             ("ruined_portal todas radio 400", "26.3", 11, 20000, {}, {"radio": 400}),
+             ("pillager_outpost radio 300", "26.3", 10, 60000, {}, {"radio": 300}),
+             ("fortress nether", "26.3", 18, 20000, {}, {})]
+    for nombre, ver, sid, R, kw, ka in casos:
+        e, _, _ = escanear("ar", ver, sid, R, hilos=4, **kw)
+        a = analizador.analizar(e.rutas["datos"], top=10 ** 9, rapido=True, guardar=False, **ka)
+        b = analizador.analizar(e.rutas["datos"], top=10 ** 9, rapido=False, guardar=False, **ka)
+        check(f"analizador rapido == grafo: {nombre}", a["conteo"] == b["conteo"] and _firma(a) == _firma(b),
+              f"{a['conteo']} | {a['segundos']:.2f}s vs {b['segundos']:.2f}s")
+    random.seed(5)        # sintetico denso (~3 por circulo de activacion, mas que cualquier estructura real)
+    pts = list({(random.randint(0, 5000), random.randint(0, 5000)) for _ in range(1000)})
+    p = _sab("denso", pts)
+    a = analizador.analizar(p, radio=128, top=10 ** 9, rapido=True, guardar=False)
+    b = analizador.analizar(p, radio=128, top=10 ** 9, rapido=False, guardar=False)
+    check("analizador rapido == grafo: sintetico denso", a["conteo"] == b["conteo"] and _firma(a) == _firma(b), str(a["conteo"]))
+    r = analizador.analizar(p, radio=128, top=5)
+    filas = open(datos.rutas(p)["csv"], encoding="utf-8").read().splitlines()
+    check("CSV tiene TODOS los grupos y el JSON solo el top",
+          len(filas) - 1 == r["total_grupos"] and len(r["grupos"]) == 5 and
+          all(len(next(csv.reader([f]))) == 6 for f in filas), f"{len(filas) - 1} filas, total {r['total_grupos']}")
+
+
+PRUEBAS = [t_geometria, t_afk_vectorizado, t_subgrupos, t_analizador, t_analizador_rapido, t_formato, t_clima_cobertura,
+           t_clima_equivalencia, t_grupos_equivalencia]

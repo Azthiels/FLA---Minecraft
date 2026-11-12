@@ -1,4 +1,7 @@
-# Structure Analyzer (Minecraft, TUI)
+# FLA - Minecraft (Farm Locator Azthiels)
+
+Encuentra en una seed de Minecraft los lugares donde varias estructuras del mismo tipo (Witch Huts, Monuments,
+Outposts...) se pueden activar a la vez desde un punto AFK, para granjas multiples. TUI en Python + Cubiomes en C.
 
     pip install -r requirements.txt     # textual, numpy
     python main.py                      # TUI con las 3 partes (teclas 1/2/3 cambian de pestana)
@@ -63,6 +66,25 @@ lejos con los parametros conocidos, no pueden ganar. Es una **cota exacta**, no 
 ## Linea de comandos
     python main.py --seed 6283985518325545008 --version 26.3 --estructura 3 --salida mundo_witch_huts --iniciar
 Completa el formulario y arranca el escaneo (`python main.py --help` para todas las opciones).
+
+## Analizador a gran escala
+* Los pares cuyas dos estructuras no tienen ninguna otra vecina (grado 1) son dobles maximales seguras: se
+  resuelven en bloque con numpy, punto AFK incluido (`geometria.afk_pares`, identico bit a bit a `punto_afk`:
+  las distancias se comparan al cuadrado, que es exacto con coordenadas enteras o .5).
+* El grafo + Bron-Kerbosch solo se arma con las estructuras de grado >= 2 (donde puede haber triples o mas).
+* Si un clique no entra entero, todo subconjunto que si entre tiene que dejar afuera alguna de las 2-3 cajas que
+  fijan su circulo minimo: se ramifica solo sobre esas (antes se probaban todos los subconjuntos, exponencial).
+* `<base>.grupos.json` guarda el resumen y los primeros 2000 grupos; `<base>.grupos.csv`, todos.
+* Tests: rapido == todo-por-el-grafo en 7 estructuras reales (de Monument a Ruined Portal con radio 400) y un caso
+  sintetico con grupos de hasta 10; subgrupos == fuerza bruta en 300 casos.
+
+## Tests
+`python -m tests [filtro...]`. Cada test tiene un limite de 300 s (`SA_TEST_LIMITE`): si se pasa, se vuelca el
+stack de todos los hilos y el proceso termina con error; cada 3 minutos imprime que test sigue corriendo.
+Los tests usan areas chicas (radios de miles a cientos de miles de bloques), nunca el mundo completo.
+
+## Licencia
+MIT (ver `LICENSE`). Incluye Cubiomes (MIT, Cubitect) y su libreria de loot (MIT, ScriptLine).
 
 ## Cajas de spawn (`sa/estructuras.py`)
 Cuadrado `[x+offset, x+offset+lado]`, conservador porque la rotacion no se calcula (lado = dimension mayor).
