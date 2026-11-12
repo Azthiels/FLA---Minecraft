@@ -56,8 +56,11 @@ El prefiltro (`shim.c: clima_posible`) calcula los parametros de a uno, los mas 
 cuanto es imposible que gane un bioma buscado: como las hojas de superficie cubren toda la caja de clima, siempre hay
 una hoja a distancia `sum(ex_i^2)` (lo que el punto se sale de la caja), y si todas las hojas buscadas ya estan mas
 lejos con los parametros conocidos, no pueden ganar. Es una **cota exacta**, no una heuristica.
-* La cobertura se verifica por version al usarla (`sa/clima.py`, ~0,5 s, en cache); en **26.2** no se cumple y el
-  prefiltro se apaga solo. Aplica a Witch Hut, piramides, iglu, ruinas oceanicas, naufragios, tesoros y trail ruins.
+* La cobertura de la capa de profundidad 0 se verifica por version al usarla (`sa/clima.py`, ~0,5 s, en cache);
+  se cumple en todas las versiones 1.18+. Las hojas sin gemela en profundidad 1 (14 en **26.2**, biomas nevados y
+  de playa) son zonas donde la cota no vale: si el punto puede caer ahi, se calcula el bioma completo. Asi el
+  prefiltro es exacto en todas las versiones 1.18+.
+  Aplica a Witch Hut, piramides, iglu, ruinas oceanicas, naufragios, tesoros y trail ruins.
 * Witch Hut 26.3: el 99,2 % de las posiciones se descarta solo con clima; el bioma completo se calcula
   practicamente solo en las huts que existen. Escaneo del mundo completo en modo grupos + clima: ~40 M reg/s
   con 8 hilos (~6 minutos para las 13 700 M de regiones; antes ~4 horas).

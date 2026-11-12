@@ -29,7 +29,10 @@ BORDE_MAX = 29_999_984  # radio del world border por defecto de vanilla (diametr
 
 
 def _cargar():
-    nombres = ["scanner.dll"] if os.name == "nt" else (["scanner.dylib", "scanner.so"] if sys.platform == "darwin" else ["scanner.so"])
+    alt = os.environ.get("SA_LIB")                  # otra libreria (p. ej. probar una compilacion nueva)
+    if alt:
+        return ctypes.CDLL(alt)
+    nombres =["scanner.dll"] if os.name == "nt" else (["scanner.dylib", "scanner.so"] if sys.platform == "darwin" else ["scanner.so"])
     for n in nombres:
         p = LIBDIR / n
         if p.exists():

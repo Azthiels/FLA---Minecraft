@@ -1,7 +1,9 @@
 """Verificacion del supuesto del prefiltro de clima (ver shim.c: clima_posible).
 
-El prefiltro es exacto si las hojas de SUPERFICIE del arbol de clima (profundidad 0 y profundidad 1) cubren cada
-una por completo la misma caja de clima (temperatura, humedad, continentalidad, erosion, rareza). Se comprueba
+El prefiltro es exacto si las hojas de SUPERFICIE de profundidad 0 del arbol de clima cubren por completo una caja
+de clima (temperatura, humedad, continentalidad, erosion, rareza). La capa de profundidad 1 no hace falta que este
+completa: las hojas de profundidad 0 sin gemela (p. ej. 14 en 26.2) se tratan en C como zonas donde se calcula el
+bioma completo. Se comprueba
 con compresion de coordenadas: en cada eje solo importan los cortes de los intervalos, asi que alcanza con revisar
 un representante por celda elemental (~340 mil celdas, recorridas en profundidad con bitsets: ~0,5 s por version).
 """
@@ -40,10 +42,19 @@ def cobertura_completa(version: str) -> bool:
     """True si el prefiltro de clima es exacto para esa version."""
     if not nativo.es_118_o_mas(version):
         return False
-    hojas = nativo.hojas_clima(version)
-    ok0, caja0 = _cubre(hojas, 0)
-    ok1, caja1 = _cubre(hojas, 10000)
-    return ok0 and ok1 and caja0 == caja1
+    ok0, _ = _cubre(nativo.hojas_clima(version), 0)
+    return ok0
+
+
+@lru_cache(maxsize=None)
+def huerfanas(version: str) -> int:
+    """Hojas de profundidad 0 sin gemela en profundidad 1 (informativo: ahi el prefiltro calcula el bioma completo)."""
+    from collections import Counter
+    h = nativo.hojas_clima(version)
+    caja = lambda r: tuple(r[i] for i in _CL)
+    d0 = Counter(caja(r) for _, r in h if r[4] == (0, 0))
+    d1 = Counter(caja(r) for _, r in h if r[4] == (10000, 10000))
+    return sum((d0 - d1).values())
 
 
 def disponible(sid: int, version: str) -> bool:

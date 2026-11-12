@@ -49,7 +49,9 @@ python build_lib.py               # recompilar lib/ si cambia cubiomes_src (en e
 - Pendiente de decidir/medir: rotacion real de la Witch Hut (cajas 7x9 exactas en vez de 9x9), radio 3D segun altura
   del AFK, cajas reales de estructuras jigsaw (outposts, etc.), regla de 24 bloques de distancia minima de spawn.
 - Hecho: prefiltro de clima 1.18+ (`shim.c: clima_posible`, `sa/clima.py`), exacto por cota de vecino mas cercano;
-  depende de que las hojas de superficie cubran toda la caja de clima (se verifica por version; en 26.2 no, se apaga).
+  depende de que las hojas de superficie de profundidad 0 cubran toda la caja de clima (se verifica por version;
+  se cumple en todas las 1.18+). Hojas sin gemela en profundidad 1 (26.2) = zonas con calculo completo.
+  `SA_LIB=<ruta.dll>` carga otra libreria (para probar una compilacion sin pisar lib/ en uso).
   Si se toca, correr `python -m tests clima`. Witch Hut mundo completo: ~6 min con 8 hilos.
 - Hecho: analizador a gran escala (dobles de grado 1 en numpy, grafo solo para grado >= 2, subgrupos por soporte
   del circulo minimo). Tests: nunca escanear el mundo completo (areas chicas); el runner corta tests de > 300 s.

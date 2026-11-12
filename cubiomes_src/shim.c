@@ -66,6 +66,8 @@ typedef struct {
     int pf_ord[5];           /* parametros de clima ordenados de mas a menos selectivo (indices NP_*) */
     int32_t *pf_union;       /* por parametro: union (ordenada, disjunta) de los intervalos de las hojas buscadas */
     int pf_uoff[6];          /* pf_union[2*pf_uoff[k] .. 2*pf_uoff[k+1]) = intervalos del parametro k */
+    int pf_norf;             /* hojas de profundidad 0 SIN gemela en profundidad 1 (zonas donde la cota no vale) */
+    int32_t *pf_orf;         /* pf_norf x 5 x [min,max] (orden de pf_ord) */
 } Handle;
 
 EXPORT int sh_str2mc(const char *s) { return str2mc(s); }
@@ -114,7 +116,7 @@ EXPORT void sh_free(void *p) {
     Handle *h = (Handle *)p;
     if (!h) return;
     free(h->boxes); free(h->wx); free(h->wz); free(h->wb); free(h->ws);
-    free(h->pf_rect); free(h->pf_acc); free(h->pf_union);
+    free(h->pf_rect); free(h->pf_acc); free(h->pf_union); free(h->pf_orf);
     free(h);
 }
 EXPORT int sh_nstat(void) { return NSTAT; }
@@ -178,10 +180,12 @@ static int fallback_biome(Handle *h, int x, int z) {
  * Calcular el bioma completo cuesta ~7 ruidos + un spline + la busqueda en el arbol. El prefiltro calcula los
  * parametros de a uno (los mas selectivos primero) y corta en cuanto es IMPOSIBLE que gane una hoja de los biomas
  * buscados:
- *   - Las hojas de superficie (profundidad 0, y su gemela en profundidad 1) cubren por completo una caja D de
- *     clima (lo verifica tests: t_clima_cobertura). Entonces para cualquier punto p existe una hoja r' que
- *     contiene clamp(p, D): su distancia es exactamente sum_i ex_i^2 (+ termino de profundidad), donde ex_i es lo
- *     que p se sale de D en el parametro i.
+ *   - Las hojas de superficie de profundidad 0 cubren por completo una caja D de clima (lo verifica
+ *     sa/clima.py por version, y tests: t_clima_cobertura). Casi todas tienen una gemela identica en
+ *     profundidad 1. Entonces para cualquier punto p existe una hoja r' que contiene clamp(p, D), en las dos
+ *     profundidades, salvo que clamp(p, D) caiga en una hoja "huerfana" (sin gemela, p. ej. 14 en 26.2): ahi la
+ *     cota no vale y se calcula el bioma completo. La distancia de r' es exactamente sum_i ex_i^2 (+ termino de
+ *     profundidad), donde ex_i es lo que p se sale de D en el parametro i.
  *   - Una hoja buscada s (de superficie) tiene distancia >= sum_{conocidos} d_i(s)^2 + sum_{desconocidos} ex_i^2
  *     (+ el mismo termino de profundidad).
  *   - Si para TODAS las hojas buscadas sum_{conocidos} d_i(s)^2 > sum_{conocidos} ex_i^2, ninguna puede ganarle a
@@ -329,10 +333,54 @@ EXPORT int sh_set_climate(void *p, int on, const unsigned char *mask) {
     }
     h->pf_uoff[5] = off;
     free(iv);
+    /* hojas huerfanas: profundidad 0 sin una hoja de profundidad 1 con exactamente la misma caja de clima.
+     * (se recorren TODAS las hojas otra vez: o.hojas[0..ns) quedo compactado con las buscadas) */
+    Hojas t = { 0, (int)a->len, (uint64_t *)malloc(sizeof(uint64_t) * a->len) };
+    if (!t.hojas) { free(o.hojas); return -1; }
+    juntar_hojas(a, 0, 0, &t);
+    free(h->pf_orf);
+    h->pf_orf = (int32_t *)malloc(sizeof(int32_t) * 10 * (t.n ? t.n : 1));
+    h->pf_norf = 0;
+    if (!h->pf_orf) { free(o.hojas); free(t.hojas); return -1; }
+    for (int i = 0; i < t.n; i++) {
+        uint64_t ni = t.hojas[i];
+        if (hoja_lo(a, ni, NP_DEPTH) != 0 || hoja_hi(a, ni, NP_DEPTH) != 0) continue;
+        int gemela = 0;
+        for (int j = 0; j < t.n && !gemela; j++) {
+            uint64_t nj = t.hojas[j];
+            if (hoja_lo(a, nj, NP_DEPTH) != 10000 || hoja_hi(a, nj, NP_DEPTH) != 10000) continue;
+            gemela = 1;
+            for (int k = 0; k < 5 && gemela; k++)
+                gemela = hoja_lo(a, ni, NP_CLIMA[k]) == hoja_lo(a, nj, NP_CLIMA[k]) &&
+                         hoja_hi(a, ni, NP_CLIMA[k]) == hoja_hi(a, nj, NP_CLIMA[k]);
+        }
+        if (!gemela) {
+            for (int k = 0; k < 5; k++) {
+                h->pf_orf[(h->pf_norf * 5 + k) * 2] = hoja_lo(a, ni, h->pf_ord[k]);
+                h->pf_orf[(h->pf_norf * 5 + k) * 2 + 1] = hoja_hi(a, ni, h->pf_ord[k]);
+            }
+            h->pf_norf++;
+        }
+    }
+    free(t.hojas);
     free(o.hojas);
     h->pf_n = ns;
     h->pf_on = 1;
     return ns;
+}
+
+/* 1 si, con los parametros 0..k ya conocidos, clamp(p, D) todavia podria caer en una hoja huerfana. */
+static int puede_ser_huerfana(const Handle *h, const int64_t *q, int k) {
+    for (int o = 0; o < h->pf_norf; o++) {
+        const int32_t *r = h->pf_orf + o * 10;
+        int dentro = 1;
+        for (int j = 0; j <= k && dentro; j++) {
+            int64_t c = q[j] < h->pf_lo[j] ? h->pf_lo[j] : (q[j] > h->pf_hi[j] ? h->pf_hi[j] : q[j]);
+            dentro = c >= r[2 * j] && c <= r[2 * j + 1];
+        }
+        if (dentro) return 1;
+    }
+    return 0;
 }
 
 /* 1 = puede ser un bioma buscado (hay que calcularlo); 0 = imposible. (x4, z4) en escala 1:4. */
@@ -361,8 +409,9 @@ static int clima_posible(Handle *h, int x4, int z4) {
             if (d == 0) break;
         }
         lb += du * du;
-        if (lb > ex) return 0;
+        if (lb > ex && !puede_ser_huerfana(h, q, k)) return 0;
     }
+    if (puede_ser_huerfana(h, q, 4)) return 1;       /* zona donde la cota no vale: calcular el bioma completo */
     /* Etapa exacta (una sola pasada por las hojas): alguna hoja buscada con distancia conocida <= ex. */
     const int32_t *r = h->pf_rect;
     for (int i = 0; i < n; i++, r += 10) {

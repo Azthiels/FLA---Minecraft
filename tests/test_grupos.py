@@ -121,14 +121,14 @@ def t_clima_cobertura():
     from sa import clima
     for v in [x for x in nativo.VERSIONES if nativo.es_118_o_mas(x)]:
         ok = clima.cobertura_completa(v)
-        check(f"clima {v}: " + ("cobertura completa -> prefiltro activo" if ok else
-                                "cobertura INCOMPLETA -> prefiltro apagado (se usa el calculo normal)"),
-              ok or v == "26.2")   # 26.2: la capa de profundidad 1 tiene huecos; se sabe y se desactiva
+        check(f"clima {v}: cobertura completa de la capa 0 -> prefiltro activo", ok,
+              f"{clima.huerfanas(v)} hojas sin gemela (zonas con calculo completo)")
 
 
 CASOS_CLIMA = [(3, "26.3", 120000), (3, "1.18", 120000), (3, "1.21.4", 120000), (3, "1.20", 80000), (1, "26.3", 60000),
                (2, "1.19", 60000), (4, "26.3", 40000), (6, "26.3", 25000), (7, "1.21.11", 25000), (14, "26.3", 1200),
-               (24, "26.3", 30000), (3, "26.2", 60000)]
+               (24, "26.3", 30000), (3, "26.2", 60000), (4, "26.2", 40000), (1, "26.2", 60000), (6, "26.2", 25000),
+               (3, "1.19.2", 60000), (3, "1.21.5", 60000), (3, "26.1", 60000)]
 
 
 def t_clima_equivalencia():
