@@ -6,6 +6,8 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Input, Label, Select, SelectionList
 from textual.widgets.selection_list import Selection
 
+from sa.i18n import t
+
 FORM_CSS = """
 .form { width: 52; padding: 0 2; border: round $primary; height: 100%; overflow-y: auto; }
 .form Label { margin-top: 1; }
@@ -26,9 +28,9 @@ def entero(inp: Input, nombre: str, minimo=1):
     try:
         v = int(inp.value.strip().replace("_", "").replace(".", ""))
     except ValueError:
-        raise ValueError(f"{nombre}: tiene que ser un numero entero")
+        raise ValueError(t("com.entero", campo=nombre))
     if v < minimo:
-        raise ValueError(f"{nombre}: tiene que ser >= {minimo}")
+        raise ValueError(t("com.minimo", campo=nombre, min=minimo))
     return v
 
 
@@ -49,14 +51,14 @@ class BiomasScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="cuadro"):
-            yield Label("Buscar solo en estos biomas (espacio para marcar/desmarcar)")
+            yield Label(t("bio.titulo"))
             yield SelectionList(*[Selection(n, i, self.seleccion is None or i in self.seleccion)
                                   for i, n in self.biomas], id="lista")
             with Horizontal(id="botones"):
-                yield Button("Todos", id="todos")
-                yield Button("Ninguno", id="ninguno")
-                yield Button("Aplicar", variant="success", id="ok")
-                yield Button("Cancelar", id="cancel")
+                yield Button(t("bio.todos"), id="todos")
+                yield Button(t("bio.ninguno"), id="ninguno")
+                yield Button(t("btn.aplicar"), variant="success", id="ok")
+                yield Button(t("btn.cancelar"), id="cancel")
 
     @on(Button.Pressed, "#todos")
     def _todos(self):
@@ -74,7 +76,7 @@ class BiomasScreen(ModalScreen):
     def _ok(self):
         sel = set(self.query_one("#lista", SelectionList).selected)
         if not sel:
-            self.notify("Elegi al menos un bioma", severity="warning")
+            self.notify(t("bio.uno"), severity="warning")
             return
         self.dismiss(None if len(sel) == len(self.biomas) else sel)
 
@@ -99,25 +101,24 @@ class CajasScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="cuadro"):
-            yield Label(f"Bounding boxes en coordenadas de {self.dim_nombre} (borde: +-{self.radio_dim:,}).\n"
-                        "Sin cajas = se escanea el mundo completo.")
+            yield Label(t("caj.titulo", dim=self.dim_nombre, r=self.radio_dim))
             with Horizontal(id="coords"):
                 yield Input(placeholder="X1", id="x1")
                 yield Input(placeholder="Z1", id="z1")
                 yield Input(placeholder="X2", id="x2")
                 yield Input(placeholder="Z2", id="z2")
-            yield Button("Agregar caja", id="add")
+            yield Button(t("caj.agregar"), id="add")
             yield DataTable(id="tcajas")
             with Horizontal(id="botones"):
-                yield Button("Quitar seleccionada", id="del")
-                yield Button("Vaciar", id="clear")
-                yield Button("Aplicar", variant="success", id="ok")
-                yield Button("Cancelar", id="cancel")
+                yield Button(t("caj.quitar"), id="del")
+                yield Button(t("caj.vaciar"), id="clear")
+                yield Button(t("btn.aplicar"), variant="success", id="ok")
+                yield Button(t("btn.cancelar"), id="cancel")
 
     def on_mount(self):
-        t = self.query_one("#tcajas", DataTable)
-        t.add_columns("#", "X1", "Z1", "X2", "Z2", "Tamano")
-        t.cursor_type = "row"
+        tb = self.query_one("#tcajas", DataTable)
+        tb.add_columns("#", "X1", "Z1", "X2", "Z2", t("caj.tamano"))
+        tb.cursor_type = "row"
         self._pintar()
 
     def _pintar(self):
@@ -131,7 +132,7 @@ class CajasScreen(ModalScreen):
         try:
             v = [int(self.query_one(i, Input).value) for i in ("#x1", "#z1", "#x2", "#z2")]
         except ValueError:
-            self.notify("Las coordenadas deben ser numeros enteros", severity="error")
+            self.notify(t("caj.enteros"), severity="error")
             return
         self.cajas.append(tuple(v))
         for i in ("#x1", "#z1", "#x2", "#z2"):

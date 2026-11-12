@@ -20,13 +20,15 @@ from itertools import combinations
 import numpy as np
 
 from sa import config, datos, estructuras, geometria, util
+from sa.i18n import t
 from sa.limpiador import pares, parametros
 
-NOMBRES = {2: "doble", 3: "triple", 4: "cuadruple", 5: "quintuple", 6: "sextuple"}
-
-
-def nombre_tam(n):
-    return NOMBRES.get(n, f"{n}-uple")
+def nombre_tam(n, plural=False):
+    """2 -> double / doble, 4 -> quad / cuadruple... (segun el idioma de sa.i18n)."""
+    par = t(f"tam.{n}")
+    if isinstance(par, tuple):
+        return par[1 if plural else 0]
+    return f"{n}-uple" + ("s" if plural else "")
 
 
 def _cliques(adj):
@@ -223,8 +225,8 @@ def analizar(entrada, radio=None, lado=None, minimo=2, orden="distancia", progre
     mejor_tam = max(conteo) if conteo else 0
     tope = grandes[:top] + dobles.dicts(x, z, b, nb, r, 0, max(0, top - len(grandes)))
     mejores = {}                                     # las mejores opciones de CADA tamano encontrado
-    for t in sorted(conteo, reverse=True):
-        mejores[str(t)] = ([g for g in grandes if g["tam"] == t][:5] if t >= 3 else dobles.dicts(x, z, b, nb, r, 0, 5))
+    for tam in sorted(conteo, reverse=True):
+        mejores[str(tam)] = ([g for g in grandes if g["tam"] == tam][:5] if tam >= 3 else dobles.dicts(x, z, b, nb, r, 0, 5))
     res = {
         "fecha": util.ahora(),                       # primero: guardado() lo lee sin cargar todo el archivo
         "seed": meta.get("seed"), "version": ver, "estructura": (meta.get("structure") or {}).get("name"),
@@ -326,21 +328,21 @@ def cargar_resultado(ruta):
 
 
 def resumen_texto(res, n=5):
-    lin = [f"{res['estructura']} | seed {res['seed']} | {res['version']} | radio {res['radio']} | "
-           f"caja {res['caja']['lado']}x{res['caja']['lado']}{'' if res['caja']['exacta'] else ' (aprox.)'}",
-           f"Estructuras leidas: {res['estructuras_leidas']:,}   pares compatibles: {res['pares']:,}   ({res['segundos']:.1f}s)"]
+    c = res["caja"]
+    lin = [t("txt.cab", est=res["estructura"], seed=res["seed"], ver=res["version"], r=res["radio"], l=c["lado"],
+             aprox="" if c["exacta"] else t("esc.aprox")),
+           t("txt.leidas", n=res["estructuras_leidas"], p=res["pares"], s=res["segundos"])]
     if res["conteo"]:
-        lin.append("Grupos: " + ", ".join(f"{v:,} {nombre_tam(int(k))}s" for k, v in res["conteo"].items()))
+        lin.append(t("txt.grupos", c=", ".join(f"{v:,} {nombre_tam(int(k), plural=True)}" for k, v in res["conteo"].items())))
     else:
-        lin.append("No hay ningun grupo: ninguna estructura se puede activar junto con otra.")
+        lin.append(t("txt.ninguno"))
     if res["maximo_teorico"]:
-        lin.append(f"Maximo teorico para esta estructura: {res['maximo_teorico']}")
+        lin.append(t("txt.teorico", n=res["maximo_teorico"]))
     if res["mejor_tam"]:
-        t = res["mejor_tam"]
-        lin.append(f"Recomendacion: {nombre_tam(t)} (lo mejor que tiene este mundo)")
+        lin.append(t("txt.recomendacion", tipo=nombre_tam(res["mejor_tam"])))
         for g in res["recomendados"][:n]:
-            lin.append(f"  AFK X {g['afk'][0]}, Z {g['afk'][1]}  margen {g['margen']} bloques  a {g['dist_origen']:,.0f} del 0,0  -> " +
-                       "; ".join(f"{e['x']},{e['z']}" for e in g["estructuras"]))
+            lin.append(t("txt.linea", x=g["afk"][0], z=g["afk"][1], m=g["margen"], d=g["dist_origen"],
+                         est="; ".join(f"{e['x']},{e['z']}" for e in g["estructuras"])))
     return "\n".join(lin)
 
 

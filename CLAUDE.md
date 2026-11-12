@@ -2,7 +2,13 @@
 Repo: https://github.com/Azthiels/FLA---Minecraft (rama main). El paquete Python se sigue llamando `sa/`.
 
 Proyecto personal de Azthiels (Cordoba, Argentina, UTC-3). Comunicacion en espanol.
-El `README.md` tiene la documentacion tecnica (arquitectura, formato, modo grupos). Leelo antes de tocar el motor.
+El `README.es.md` tiene la documentacion tecnica (arquitectura, formato, modo grupos). Leelo antes de tocar el motor.
+Publico (GitHub): `README.md` (ingles) y `docs/GUIDE.md` (guia paso a paso en ingles, capturas en `docs/img/*.svg`).
+
+**Idiomas:** la interfaz es bilingue (en por defecto, es opcional). Todo texto visible nuevo va en `sa/i18n.py`
+(`t("clave")`, con columna en ingles y en espanol); nunca strings sueltos en la TUI ni en mensajes de error.
+El idioma se fija antes de importar `sa.tui.app` (los atajos se arman al importar). El usuario usa `--lang es`.
+Las capturas de la guia se regeneran con un script de pilot de Textual (ver historial) a 190x50, seed 123456789.
 
 ## Que es
 Un programa (`python main.py`, TUI Textual) con 3 partes en pestanas, en el paquete `sa/`:

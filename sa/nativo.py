@@ -159,14 +159,15 @@ def tabla_biomas(version: str) -> dict:
 
 def parse_seed(texto: str) -> int:
     """Acepta numeros (con signo) o texto, como el juego (hash de Java String.hashCode)."""
-    t = texto.strip()
-    if not t:
-        raise ValueError("Seed vacia")
+    s = texto.strip()
+    if not s:
+        from sa.i18n import t
+        raise ValueError(t("err.seed_vacia"))
     try:
-        return int(t) & 0xFFFFFFFFFFFFFFFF
+        return int(s) & 0xFFFFFFFFFFFFFFFF
     except ValueError:
         h = 0
-        for ch in t:
+        for ch in s:
             h = (31 * h + ord(ch)) & 0xFFFFFFFF
         if h >= 0x80000000:
             h -= 0x100000000

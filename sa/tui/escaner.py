@@ -8,13 +8,13 @@ from textual.widgets import Button, Checkbox, DataTable, Input, Label, ProgressB
 
 from sa import RAIZ, clima, config, estructuras, nativo, util
 from sa.escaner import Escaneo, ReanudarError, SalidaExisteError
+from sa.i18n import t
 from sa.tui.comunes import BiomasScreen, CajasScreen, entero, valor
 
 
 def _campo(etiqueta, widget, clases="", id=None):
     """Celda de la grilla de opciones: etiqueta arriba + control compacto abajo."""
-    c = Vertical(Label(etiqueta), widget, classes=("campo " + clases).strip(), id=id)
-    return c
+    return Vertical(Label(etiqueta), widget, classes=("campo " + clases).strip(), id=id)
 
 
 class PanelEscaner(Horizontal):
@@ -48,45 +48,39 @@ class PanelEscaner(Horizontal):
         nucleos = os.cpu_count() or 1
         with Vertical(id="izq"):
             with Grid(id="opciones"):
-                yield _campo("Seed (numero o texto)", Input(placeholder="ej: -4172144997902289642", id="seed", compact=True), "span2")
-                yield _campo("Version", Select([(nativo.VERSIONES_LABEL.get(v, v), v) for v in nativo.VERSIONES],
-                                               value=nativo.VERSIONES[-1], allow_blank=False, id="version", compact=True))
-                yield _campo("Dimension", Select([("Overworld", 0), ("Nether", -1), ("End", 1)], value=0,
-                                                 allow_blank=False, id="dimension", compact=True))
-                yield _campo("Estructura (una a la vez)", Select([], id="estructura", prompt="Elegi una estructura",
-                                                                 compact=True), "span2")
-                yield _campo("Radio del world border", Input(value=str(nativo.BORDE_MAX), id="borde", compact=True))
-                yield _campo("Biomas", Button("todos los validos", id="btn_biomas", compact=True))
-                yield _campo("Area (bounding boxes)", Button("mundo completo", id="btn_cajas", compact=True))
-                yield _campo("Que guardar", Select([("Solo agrupables (rapido)", "grupos"), ("Todas", "todas")],
-                                                   value=config.MODO, allow_blank=False, id="modo", compact=True))
-                yield _campo("Radio de activacion", Input(value=str(config.RADIO_ACTIVACION), id="radio_g", compact=True))
-                yield _campo("Lado de la caja", Input(value="16", id="lado", compact=True))
-                yield _campo(f"Hilos (este equipo: {nucleos})", Input(value=str(nucleos), id="hilos", compact=True))
-                yield _campo("Lote de escritura", Input(value=str(config.BATCH_SIZE), id="lote", compact=True))
-                yield _campo("Salida (nombre base: .sab + .meta.json + .checkpoint.json)",
-                             Input(value=str(RAIZ / "escaneo"), id="salida", compact=True), "span3")
-                yield Checkbox("Modo auto (1 -> 2 -> 3)", id="auto", compact=True,
-                               tooltip="Al terminar el escaneo, limpia (si hace falta) y analiza solo")
-                yield Checkbox("Sobrescribir salida previa", id="sobrescribir", compact=True)
-                yield Checkbox("Prefiltro de clima 1.18+", value=config.CLIMA, id="clima", compact=True)
+                yield _campo(t("esc.seed"), Input(placeholder=t("esc.seed_ej"), id="seed", compact=True), "span2")
+                yield _campo(t("esc.version"), Select([(nativo.VERSIONES_LABEL.get(v, v), v) for v in nativo.VERSIONES],
+                                                      value=nativo.VERSIONES[-1], allow_blank=False, id="version",
+                                                      compact=True))
+                yield _campo(t("esc.dimension"), Select([("Overworld", 0), ("Nether", -1), ("End", 1)], value=0,
+                                                        allow_blank=False, id="dimension", compact=True))
+                yield _campo(t("esc.estructura"), Select([], id="estructura", prompt=t("esc.elegi"), compact=True), "span2")
+                yield _campo(t("esc.borde"), Input(value=str(nativo.BORDE_MAX), id="borde", compact=True))
+                yield _campo(t("esc.biomas"), Button(t("esc.todos_validos"), id="btn_biomas", compact=True))
+                yield _campo(t("esc.area"), Button(t("esc.mundo"), id="btn_cajas", compact=True))
+                yield _campo(t("esc.que"), Select([(t("esc.modo_grupos"), "grupos"), (t("esc.modo_todas"), "todas")],
+                                                  value=config.MODO, allow_blank=False, id="modo", compact=True))
+                yield _campo(t("esc.radio_g"), Input(value=str(config.RADIO_ACTIVACION), id="radio_g", compact=True))
+                yield _campo(t("esc.lado"), Input(value="16", id="lado", compact=True))
+                yield _campo(t("esc.hilos", n=nucleos), Input(value=str(nucleos), id="hilos", compact=True))
+                yield _campo(t("esc.lote"), Input(value=str(config.BATCH_SIZE), id="lote", compact=True))
+                yield _campo(t("esc.salida"), Input(value=str(RAIZ / "escaneo"), id="salida", compact=True), "span3")
+                yield Checkbox(t("esc.auto"), id="auto", compact=True, tooltip=t("esc.auto_tip"))
+                yield Checkbox(t("esc.sobrescribir"), id="sobrescribir", compact=True)
+                yield Checkbox(t("esc.clima"), value=config.CLIMA, id="clima", compact=True)
                 yield Static("", id="info", classes="span3")
-                yield Button("Iniciar / reanudar escaneo", variant="success", id="go", classes="span3")
-            yield Static("Listo. Completa los datos y presiona Iniciar. Si ya existe un checkpoint con los mismos "
-                         "parametros, el escaneo se reanuda solo.\n[b]Solo agrupables[/b]: guarda solo las estructuras "
-                         "que tienen otra con la que se pueden activar a la vez (mismo resultado que guardar todas y "
-                         "limpiar, mucho mas rapido). [b]Modo auto[/b]: encadena escaner -> limpiador -> analizador.",
-                         id="stats")
+                yield Button(t("esc.iniciar"), variant="success", id="go", classes="span3")
+            yield Static(t("esc.ayuda"), id="stats")
             yield ProgressBar(total=100, show_eta=False, id="bar")
         with Vertical(id="der"):
             yield DataTable(id="tabla")
 
     def on_mount(self):
-        self.query_one("#opciones").border_title = "Opciones del escaneo"
-        t = self.query_one("#tabla", DataTable)
-        t.add_columns("#", "X", "Z", "Bioma")
-        t.cursor_type = "row"
-        t.border_title = "Encontradas (ultimas)"
+        self.query_one("#opciones").border_title = t("esc.opciones")
+        tb = self.query_one("#tabla", DataTable)
+        tb.add_columns("#", "X", "Z", t("esc.col_bioma"))
+        tb.cursor_type = "row"
+        tb.border_title = t("esc.encontradas")
         self._refrescar_estructuras()
         self.set_interval(0.5, self._tick)
         if self.prefill:
@@ -128,8 +122,7 @@ class PanelEscaner(Horizontal):
         if sid is not None and cb.display:
             ok = clima.disponible(sid, ver)
             cb.disabled = not ok
-            cb.tooltip = (None if ok else "No aplica a esta estructura/version (solo estructuras con un unico chequeo "
-                          "de bioma, y versiones donde se verifica la cobertura del arbol de clima)")
+            cb.tooltip = None if ok else t("esc.clima_no")
 
     # ---------- helpers ----------
     def _sid(self):
@@ -148,17 +141,11 @@ class PanelEscaner(Horizontal):
             r = nativo.BORDE_MAX
         return nativo.limite_dimension(self._dim(), r)
 
-    def _resumen_biomas(self):
-        if self.biomas_sel is None:
-            return "todos los biomas validos para la estructura"
-        nombres = sorted(nativo.nombre_bioma(self._version(), b) for b in self.biomas_sel)
-        return f"{len(nombres)} elegidos: " + ", ".join(nombres)
-
     def _etiquetas(self):
         self.query_one("#btn_biomas", Button).label = (
-            "todos los validos" if self.biomas_sel is None else f"{len(self.biomas_sel)} elegidos")
+            t("esc.todos_validos") if self.biomas_sel is None else t("esc.n_elegidos", n=len(self.biomas_sel)))
         self.query_one("#btn_cajas", Button).label = (
-            "mundo completo" if not self.cajas else f"{len(self.cajas)} caja(s)")
+            t("esc.mundo") if not self.cajas else t("esc.n_cajas", n=len(self.cajas)))
 
     @property
     def auto(self):
@@ -172,7 +159,7 @@ class PanelEscaner(Horizontal):
         self.biomas_sel = None
         self._etiquetas()
         self._refrescar_clima()
-        self.query_one("#info", Static).update("" if opts else "No hay estructuras para esta dimension en esta version.")
+        self.query_one("#info", Static).update("" if opts else t("esc.sin_estructuras"))
 
     @on(Select.Changed, "#version")
     @on(Select.Changed, "#dimension")
@@ -197,21 +184,20 @@ class PanelEscaner(Horizontal):
         b = [n for _, n in nativo.biomas_validos(sid, self._version())]
         self._etiquetas()
         teo = estructuras.maximo_teorico(sid, self._version(), config.RADIO_ACTIVACION, caja.lado)
-        self.query_one("#info", Static).update(
-            f"Biomas posibles: {', '.join(b) if b else '(segun terreno/dimension)'}.\n"
-            f"Caja para grupos: {caja.nota}{'' if caja.exacta else ' [aprox.]'}\n"
-            f"Region: {nativo.region_bloques(sid, self._version())} bloques -> como mucho {teo} juntas con radio "
-            f"{config.RADIO_ACTIVACION}.")
+        self.query_one("#info", Static).update(t(
+            "esc.info", biomas=", ".join(b) if b else t("esc.segun_terreno"), nota=caja.nota,
+            aprox="" if caja.exacta else t("esc.aprox"), rb=nativo.region_bloques(sid, self._version()), teo=teo,
+            r=config.RADIO_ACTIVACION))
 
     @on(Button.Pressed, "#btn_biomas")
     def _abrir_biomas(self):
         sid = self._sid()
         if sid is None:
-            self.notify("Primero elegi una estructura", severity="warning")
+            self.notify(t("esc.primero_estructura"), severity="warning")
             return
         biomas = nativo.biomas_validos(sid, self._version())
         if not biomas:
-            self.notify("Esta estructura no depende de biomas elegibles", severity="information")
+            self.notify(t("esc.sin_biomas"), severity="information")
             return
 
         def listo(res):
@@ -240,34 +226,34 @@ class PanelEscaner(Horizontal):
     def _go(self):
         if self.corriendo:
             self.escaneo.stop.set()
-            self.query_one("#go", Button).label = "Deteniendo (guardando)..."
+            self.query_one("#go", Button).label = t("esc.deteniendo")
             return
         try:
             seed = nativo.parse_seed(self.query_one("#seed", Input).value)
             sid = self._sid()
             if sid is None:
-                raise ValueError("Elegi una estructura")
-            radio = entero(self.query_one("#borde", Input), "Radio del border")
-            lote = entero(self.query_one("#lote", Input), "Lote")
-            hilos = entero(self.query_one("#hilos", Input), "Hilos")
+                raise ValueError(t("esc.falta_estructura"))
+            radio = entero(self.query_one("#borde", Input), t("esc.f_borde"))
+            lote = entero(self.query_one("#lote", Input), t("esc.f_lote"))
+            hilos = entero(self.query_one("#hilos", Input), t("esc.f_hilos"))
             modo = self.query_one("#modo", Select).value
-            rg = entero(self.query_one("#radio_g", Input), "Radio de activacion")
-            lado = entero(self.query_one("#lado", Input), "Lado de la caja")
+            rg = entero(self.query_one("#radio_g", Input), t("esc.f_radio_g"))
+            lado = entero(self.query_one("#lado", Input), t("esc.f_lado"))
             salida = self.query_one("#salida", Input).value.strip()
             if not salida:
-                raise ValueError("Falta la ruta de salida")
+                raise ValueError(t("esc.falta_salida"))
             cb = self.query_one("#clima", Checkbox)
             self.escaneo = Escaneo(self._version(), seed, sid, radio, salida, cajas=self.cajas or None,
                                    biomas=self.biomas_sel, hilos=hilos, lote=lote, modo=modo, radio_grupo=rg, lado=lado,
                                    clima=cb.value and cb.display and not cb.disabled,
                                    sobrescribir=self.query_one("#sobrescribir", Checkbox).value)
         except ValueError as e:
-            self._mensaje(f"[red]Error:[/red] {e}")
+            self._mensaje(f"[red]{t('com.error')}[/red] {e}")
             return
         self.query_one("#tabla", DataTable).clear()
         self._mostradas = -1
         self.corriendo = True
-        self.query_one("#go", Button).label = "Detener (guarda y deja checkpoint)"
+        self.query_one("#go", Button).label = t("esc.detener")
         self.run_worker(self._correr, thread=True, exclusive=True, group="escaneo")
 
     def _correr(self):
@@ -281,32 +267,26 @@ class PanelEscaner(Horizontal):
 
     def _fin(self, err=None):
         self.corriendo = False
-        self.query_one("#go", Button).label = "Iniciar / reanudar escaneo"
+        self.query_one("#go", Button).label = t("esc.iniciar")
         e = self.escaneo
         if err:
-            self._mensaje(f"[red]No se pudo iniciar:[/red] {err}")
-            self.notify(err, title="Escaneo no iniciado", severity="error", timeout=20)
+            self._mensaje(f"[red]{t('esc.no_inicio')}[/red] {err}")
+            self.notify(err, title=t("esc.no_inicio_t"), severity="error", timeout=20)
         else:
             self._tick(forzar=True)
             r = e.resumen()
             total_t = util.fmt_t(e.tiempo())
             if e.estado == "completado":
-                color, titulo, sev = "green", "ESCANEO COMPLETADO", "information"
+                color, titulo, sev = "green", t("esc.completado"), "information"
             elif e.estado == "interrumpido":
-                color, titulo, sev = "yellow", "ESCANEO INTERRUMPIDO (se puede reanudar)", "warning"
+                color, titulo, sev = "yellow", t("esc.interrumpido"), "warning"
             else:
-                color, titulo, sev = "red", f"ESCANEO CON ERRORES: {e.error}", "error"
-            msg = f"{e.escritas:,} estructuras en {total_t}"
+                color, titulo, sev = "red", t("esc.con_errores", e=e.error), "error"
+            msg = t("esc.msg_fin", n=e.escritas, t=total_t)
             auto = self.auto and e.estado == "completado"
-            if auto:
-                sig = "\n[b]Modo auto:[/b] sigue el analisis solo."
-            elif e.modo == "grupos":
-                sig = "\nSiguiente paso: pestana [b]3 Analizador[/b] (el archivo ya esta cargado)."
-            else:
-                sig = "\nSiguiente paso: pestana [b]2 Limpiador[/b] (el archivo ya esta cargado)."
-            self._mensaje(f"[b {color}]{titulo}[/b {color}]   {e.escritas:,} estructuras guardadas (modo {e.modo})\n"
-                          f"Tiempo total: {total_t}   Regiones: {r['regiones']:,}/{r['regiones_total']:,}\n"
-                          f"Archivo: {r['archivos']['datos']}{sig}")
+            sig = t("esc.sig_auto") if auto else (t("esc.sig_3") if e.modo == "grupos" else t("esc.sig_2"))
+            self._mensaje(t("esc.resumen_fin", c=color, tit=titulo, n=e.escritas, modo=t(f"modo.{e.modo}"), t=total_t,
+                            r=r["regiones"], rt=r["regiones_total"], f=r["archivos"]["datos"], sig=sig))
             if not auto:                          # en modo auto el aviso llega al final de la cadena
                 self.app.bell()
                 self.notify(f"{msg}\n{e.rutas['datos']}", title=titulo.split(" (")[0].title(), timeout=60, severity=sev)
@@ -328,24 +308,22 @@ class PanelEscaner(Horizontal):
             falta = total - hechas
             eta = falta / vel if vel else float("inf")
             st = dict(zip(nativo.STAT_NAMES, e._stats_total()))
-            area = ("mundo completo" if not e.cajas_usuario else f"{len(e.cajas_usuario)} caja(s)") + f" (limite +-{e.limite:,})"
-            hil = "".join("[green]#[/green]" if t is not None else "[dim].[/dim]" for t in list(e.estado_hilos))
-            biomas = "todos los validos" if e.biomas is None else f"{len(e.biomas)} elegidos"
-            pos = max(1, st["in_box"])
-            ahorro = f"   bioma completo en {100 * st['viable_calls'] / pos:.2f}% de las posiciones"
+            area = (t("esc.mundo") if not e.cajas_usuario else t("esc.n_cajas", n=len(e.cajas_usuario))) + \
+                t("esc.limite", l=e.limite)
+            hil = "".join("[green]#[/green]" if h is not None else "[dim].[/dim]" for h in list(e.estado_hilos))
+            biomas = t("esc.todos_validos") if e.biomas is None else t("esc.n_elegidos", n=len(e.biomas))
+            ahorro = t("esc.ahorro", p=100 * st["viable_calls"] / max(1, st["in_box"]))
             if e.clima:
-                ahorro += f" (clima descarto {st['climate_rejected']:,})"
-            self._mensaje(
-                f"[b]{nativo.nombre_estructura(e.sid)}[/b] | {nativo.DIM_NOMBRE[e.dim]} | {e.version} | "
-                f"seed {nativo.seed_firmada(e.seed)} | modo {e.modo}{' + clima' if e.clima else ''}\n"
-                f"Area: {area}   Biomas: {biomas}\n"
-                f"Regiones: {hechas:,}/{total:,}  (restan {falta:,})  {100*hechas/max(1,total):.2f}%\n"
-                f"Guardadas: {e.encontradas:,} (escritas {e.escritas:,})   {vel:,.0f} reg/s{ahorro}\n"
-                f"Transcurrido {util.fmt_t(e.tiempo())}   ETA {util.fmt_t(eta)}\n"
-                f"Hilos {len(e.estado_hilos)}: {hil}   {'(reanudado)' if e.reanudado else ''}")
+                ahorro += t("esc.clima_desc", n=st["climate_rejected"])
+            self._mensaje(t(
+                "esc.progreso", est=nativo.nombre_estructura(e.sid), dim=nativo.DIM_NOMBRE[e.dim], ver=e.version,
+                seed=nativo.seed_firmada(e.seed), modo=t(f"modo.{e.modo}"), clima=t("esc.mas_clima") if e.clima else "",
+                area=area, biomas=biomas, h=hechas, tot=total, falta=falta, pct=100 * hechas / max(1, total),
+                enc=e.encontradas, esc=e.escritas, vel=vel, ahorro=ahorro, t=util.fmt_t(e.tiempo()),
+                eta=util.fmt_t(eta), nh=len(e.estado_hilos), hil=hil, rean=t("esc.reanudado") if e.reanudado else ""))
         if e.encontradas != self._mostradas:
             self._mostradas = e.encontradas
-            t = self.query_one("#tabla", DataTable)
-            t.clear()
+            tb = self.query_one("#tabla", DataTable)
+            tb.clear()
             for i, (x, z, b) in enumerate(list(e.ultimos)[::-1]):
-                t.add_row(str(e.encontradas - i), str(x), str(z), b)
+                tb.add_row(str(e.encontradas - i), str(x), str(z), b)

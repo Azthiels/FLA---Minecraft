@@ -1,4 +1,5 @@
 """Planificacion: cajas (bounding boxes) -> rectangulos disjuntos -> tiles de regiones en anillos desde el origen."""
+from sa.i18n import t
 
 
 def normalizar_cajas(cajas, limite):
@@ -8,14 +9,14 @@ def normalizar_cajas(cajas, limite):
     out = []
     for c in cajas:
         if len(c) != 4:
-            raise ValueError("Cada caja necesita X1, Z1, X2, Z2")
+            raise ValueError(t("err.caja_4"))
         x0, z0, x1, z1 = (int(v) for v in c)
         x0, x1 = sorted((x0, x1)); z0, z1 = sorted((z0, z1))
         x0, z0, x1, z1 = max(x0, -limite), max(z0, -limite), min(x1, limite), min(z1, limite)
         if x0 <= x1 and z0 <= z1:
             out.append((x0, z0, x1, z1))
     if not out:
-        raise ValueError(f"Ninguna caja cae dentro del world border (+-{limite:,})")
+        raise ValueError(t("err.caja_fuera", l=limite))
     return out
 
 

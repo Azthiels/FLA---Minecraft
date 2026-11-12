@@ -14,6 +14,9 @@ RECENT_ROWS = 200            # ultimos registros que guarda en RAM la TUI
 MODO = "grupos"              # "grupos" = solo las que tienen vecina (recomendado) | "todas"
 CLIMA = True                 # prefiltro de clima 1.18+ (exacto; se ignora donde no aplica)
 
+# ---- interfaz
+IDIOMA = "en"                # "en" | "es"  (tambien: python main.py --lang es, o la variable SA_LANG)
+
 # ---- grupos (escaner en modo grupos, limpiador, analizador)
 RADIO_ACTIVACION = 128       # bloques: radio desde el jugador en el que tiene que entrar cada caja
 TOP_GRUPOS = 500             # grupos que muestra la tabla del analizador (el archivo exportado tiene todos)

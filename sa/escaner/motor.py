@@ -18,6 +18,7 @@ import numpy as np
 
 from sa import clima as clima_mod
 from sa import config, datos, estructuras, nativo, util
+from sa.i18n import t
 from sa.nativo import L
 from sa.escaner.plan import Plan, descomponer, normalizar_cajas
 
@@ -42,28 +43,28 @@ class Escaneo:
         self.version, self.seed, self.sid = version, seed, sid
         self.mc = nativo.mc_id(version)
         if not L.sh_supported(sid, self.mc):
-            raise ValueError("Esa estructura no existe en esa version")
+            raise ValueError(t("err.estructura_version"))
         self.dim = nativo.dimension(sid, version)
         self.radio = int(radio)
         if self.radio <= 0:
-            raise ValueError("El radio del world border debe ser positivo")
+            raise ValueError(t("err.radio_borde"))
         self.limite = nativo.limite_dimension(self.dim, self.radio)
         self.cajas_usuario = [tuple(c) for c in cajas] if cajas else []
         self.cajas = normalizar_cajas(cajas, self.limite)
         self.rects = descomponer(self.cajas)
         self.biomas = None if biomas is None else sorted(set(int(b) for b in biomas))
         if self.biomas is not None and not self.biomas:
-            raise ValueError("Elegi al menos un bioma")
+            raise ValueError(t("err.un_bioma"))
         self.mask = nativo.mascara_biomas(self.biomas)
         self.modo = modo or config.MODO
         if self.modo not in MODOS:
-            raise ValueError(f"Modo desconocido: {self.modo}")
+            raise ValueError(t("err.modo", m=self.modo))
         caja = estructuras.caja(sid)
         self.radio_grupo = int(radio_grupo if radio_grupo is not None else config.RADIO_ACTIVACION)
         self.lado = int(lado if lado is not None else caja.lado)
         self.offset = caja.offset
         if self.modo == "grupos" and (self.radio_grupo <= 0 or self.lado <= 0):
-            raise ValueError("Radio de activacion y lado de la caja deben ser positivos")
+            raise ValueError(t("err.grupo_pos"))
         # prefiltro de clima: no cambia resultados, asi que no forma parte de la identidad (se puede alternar al reanudar)
         self.clima_pedido = config.CLIMA if clima is None else bool(clima)
         self.clima = self.clima_pedido and clima_mod.disponible(sid, version)
@@ -221,10 +222,9 @@ class Escaneo:
             ident, old = self.identidad(), c.get("identity", {})
             difs = [k for k in sorted(set(ident) | set(old)) if ident.get(k) != old.get(k)]
             if difs:
-                raise ReanudarError("El checkpoint existente no coincide en: " + ", ".join(difs) +
-                                    ". Cambia la ruta de salida o marca 'sobrescribir'.")
+                raise ReanudarError(t("err.ckpt_distinto", campos=", ".join(difs)))
             if not dt.exists() or dt.stat().st_size < c["file_bytes"]:
-                raise ReanudarError("El archivo de datos es mas corto que el offset del checkpoint (archivo alterado).")
+                raise ReanudarError(t("err.ckpt_corto"))
             with open(dt, "r+b") as f:        # descarta lo escrito despues del ultimo checkpoint (se re-escanea)
                 f.truncate(c["file_bytes"])
             self._wm, self._done_extra, self._bytes = c["watermark"], set(c["extra_done"]), c["file_bytes"]
@@ -236,7 +236,7 @@ class Escaneo:
             self.inicio_iso, self.reanudado = c.get("started_at") or util.ahora(), True
             self._skip = set(self._done_extra)
         elif existe and not self.sobrescribir:
-            raise SalidaExisteError(f"Ya existen resultados en {dt.name}. Activa 'sobrescribir' o cambia la ruta.")
+            raise SalidaExisteError(t("err.existe", f=dt.name))
         else:
             for k in ("datos", "meta", "ckpt"):
                 if self.rutas[k].exists():
@@ -260,7 +260,7 @@ class Escaneo:
     def _trabajador(self, wid):
         h = L.sh_new(self.mc, self.seed, self.sid)     # un generador por hilo, reutilizado en todos sus tiles
         if not h:
-            self.error = "No se pudo crear el generador nativo"
+            self.error = t("err.generador")
             self.stop.set()
             self._q.put(_SENT)
             return

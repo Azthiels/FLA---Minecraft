@@ -18,18 +18,23 @@ class Caja:
     offset: int      # desde la posicion de getStructurePos hasta la esquina minima del cuadrado
     lado: int        # lado del cuadrado conservador
     exacta: bool     # True = dimensiones conocidas del juego; False = aproximacion, ajustala en la TUI
-    nota: str
+    clave: str       # texto explicativo en sa/i18n.py ("caja.<id>")
+
+    @property
+    def nota(self) -> str:
+        from sa.i18n import t
+        return t(self.clave)
 
 
 # getStructurePos devuelve la esquina del chunk de inicio en todas estas estructuras.
 CAJAS = {
-    3: Caja(0, 9, True, "Witch Hut: 7x9 desde la esquina del chunk, rotacion aleatoria -> 9x9"),
-    1: Caja(0, 21, True, "Desert Pyramid: 21x21 desde la esquina del chunk"),
-    2: Caja(0, 15, True, "Jungle Temple: 12x15 desde la esquina del chunk, rotacion aleatoria -> 15x15"),
-    4: Caja(0, 8, True, "Igloo (superficie): 7x8 desde la esquina del chunk -> 8x8"),
-    8: Caja(-21, 58, False, "Ocean Monument: 58x58 centrado en el chunk (aprox.)"),
+    3: Caja(0, 9, True, "caja.3"),       # Witch Hut 7x9, rotacion aleatoria -> 9x9
+    1: Caja(0, 21, True, "caja.1"),      # Desert Pyramid 21x21
+    2: Caja(0, 15, True, "caja.2"),      # Jungle Temple 12x15 -> 15x15
+    4: Caja(0, 8, True, "caja.4"),       # Igloo 7x8 -> 8x8
+    8: Caja(-21, 58, False, "caja.8"),   # Ocean Monument 58x58 centrado (aprox.)
 }
-_DEFECTO = Caja(0, 16, False, "Sin datos de la caja: se asume 1 chunk (16x16). Ajusta el lado segun la granja.")
+_DEFECTO = Caja(0, 16, False, "caja.def")
 
 
 def caja(sid: int) -> Caja:

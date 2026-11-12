@@ -1,8 +1,10 @@
-"""App principal: las 3 partes como pestanas. Al terminar una, el archivo pasa solo a la siguiente."""
+"""App principal: las 3 partes como pestanas. Al terminar una, el archivo pasa solo a la siguiente.
+El idioma (sa.i18n) tiene que estar elegido ANTES de importar este modulo (los atajos se arman al importar)."""
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Input, TabbedContent, TabPane
 
 from sa import util
+from sa.i18n import t
 from sa.tui.analizador import PanelAnalizador
 from sa.tui.comunes import FORM_CSS
 from sa.tui.escaner import PanelEscaner
@@ -11,26 +13,24 @@ from sa.tui.limpiador import PanelLimpiador
 
 class StructureAnalyzer(App):
     TITLE = "FLA - Farm Locator Azthiels"
-    CSS = FORM_CSS + """
-    .fila { height: auto; }
-    .fila Vertical { height: auto; width: 1fr; }
-    """
-    BINDINGS = [("q", "quit", "Salir"), ("1", "pestana('t1')", "Escaner"), ("2", "pestana('t2')", "Limpiador"),
-                ("3", "pestana('t3')", "Analizador")]
+    CSS = FORM_CSS
+    BINDINGS = [("q", "quit", t("app.salir")), ("1", "pestana('t1')", t("app.escaner")),
+                ("2", "pestana('t2')", t("app.limpiador")), ("3", "pestana('t3')", t("app.analizador"))]
 
     def __init__(self, prefill=None):
         super().__init__()
         self.saliendo = False
+        self.auto_en_curso = False
         self.prefill = prefill or {}
 
     def compose(self) -> ComposeResult:
         yield Header()
         with TabbedContent(initial="t1"):
-            with TabPane("1 Escaner", id="t1"):
+            with TabPane(t("app.tab1"), id="t1"):
                 yield PanelEscaner(prefill=self.prefill, id="p_escaner")
-            with TabPane("2 Limpiador", id="t2"):
+            with TabPane(t("app.tab2"), id="t2"):
                 yield PanelLimpiador(id="p_limpiador")
-            with TabPane("3 Analizador", id="t3"):
+            with TabPane(t("app.tab3"), id="t3"):
                 yield PanelAnalizador(id="p_analizador")
         yield Footer()
 
@@ -38,8 +38,6 @@ class StructureAnalyzer(App):
         esc = self.query_one(PanelEscaner)
         lim = self.query_one(PanelLimpiador)
         ana = self.query_one(PanelAnalizador)
-
-        self.auto_en_curso = False
 
         def tras_escaneo(e):
             ruta = e.rutas["datos"]
@@ -55,7 +53,7 @@ class StructureAnalyzer(App):
                 self.action_pestana("t2")
                 lim.ejecutar()
             else:                                     # en modo grupos el escaneo ya sale limpio: el paso 2 no cambia nada
-                self.notify("Modo grupos: el resultado ya viene limpio, paso directo al analizador.", title="Modo auto")
+                self.notify(t("app.auto_grupos"), title=t("app.auto_titulo"))
                 self.action_pestana("t3")
                 ana.ejecutar()
 
@@ -70,17 +68,17 @@ class StructureAnalyzer(App):
                 return
             self.auto_en_curso = False
             if r is None:
-                util.notificar("FLA: error en el analisis", "Revisa la pestana 3")
+                util.notificar(t("app.auto_error"), t("app.auto_error_msg"))
                 return
-            from sa import analizador
-            t = r["mejor_tam"]
-            if t:
-                g = r["mejores"][str(t)][0]
-                msg = f"Mejor: {analizador.nombre_tam(t)} en X {g['afk'][0]}, Z {g['afk'][1]} (margen {g['margen']})"
+            from sa.analizador import nombre_tam
+            tam = r["mejor_tam"]
+            if tam:
+                g = r["mejores"][str(tam)][0]
+                msg = t("app.auto_mejor", tipo=nombre_tam(tam), x=g["afk"][0], z=g["afk"][1], m=g["margen"])
             else:
-                msg = "No hay grupos en esta seed"
+                msg = t("app.auto_nada")
             self.bell()
-            util.notificar("FLA: analisis terminado", msg)
+            util.notificar(t("app.auto_fin"), msg)
 
         esc.al_terminar = tras_escaneo
         lim.al_terminar = tras_limpieza
@@ -99,7 +97,7 @@ class StructureAnalyzer(App):
         if esc.corriendo:                    # primero guardar y dejar checkpoint, despues salir
             self.saliendo = True
             esc.detener()
-            self.notify("Guardando antes de salir...", severity="warning")
+            self.notify(t("app.guardando"), severity="warning")
         else:
             self.exit()
 

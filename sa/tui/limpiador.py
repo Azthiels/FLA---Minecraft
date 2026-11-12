@@ -7,6 +7,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Input, Label, ProgressBar, Static
 
 from sa import RAIZ, config, datos, limpiador
+from sa.i18n import t
 from sa.tui.comunes import entero
 
 
@@ -18,21 +19,18 @@ class PanelLimpiador(Horizontal):
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="form"):
-            yield Label("Archivo de entrada (.sab o .jsonl viejo)")
-            yield Input(value=str(RAIZ / "resultados.jsonl"), id="entrada")
-            yield Label("Radio de activacion (bloques)")
+            yield Label(t("lim.entrada"))
+            yield Input(value=str(RAIZ / "escaneo.sab"), id="entrada")
+            yield Label(t("lim.radio"))
             yield Input(value=str(config.RADIO_ACTIVACION), id="radio")
-            yield Label("Lado de la caja (vacio = el del escaneo/estructura)")
+            yield Label(t("lim.lado"))
             yield Input(value="", id="lado", placeholder="auto")
-            yield Label("Salida (nombre base, vacio = <entrada>_limpio)")
+            yield Label(t("lim.salida"))
             yield Input(value="", id="salida", placeholder="auto")
-            yield Button("Limpiar", variant="success", id="go")
-            yield Static("Descarta las estructuras que no tienen ninguna otra con la que se puedan activar a la vez. "
-                         "Antes de descartar una se revisan todas sus vecinas.\n\n"
-                         "Si el escaneo se hizo en modo [b]Solo agrupables[/b] ya viene limpio: pasa directo al Analizador.",
-                         classes="info")
+            yield Button(t("lim.limpiar"), variant="success", id="go")
+            yield Static(t("lim.ayuda"), classes="info")
         with Vertical(classes="derecha"):
-            yield Static("Elegi un archivo y presiona Limpiar.", id="estado", classes="estado")
+            yield Static(t("lim.listo"), id="estado", classes="estado")
             yield ProgressBar(total=100, show_eta=False, id="bar")
 
     def cargar(self, ruta):
@@ -54,18 +52,17 @@ class PanelLimpiador(Horizontal):
         try:
             ent = self.query_one("#entrada", Input).value.strip()
             if not ent or not Path(ent).exists():
-                raise ValueError(f"No existe el archivo: {ent}")
-            radio = entero(self.query_one("#radio", Input), "Radio")
+                raise ValueError(t("com.no_existe", ruta=ent))
+            radio = entero(self.query_one("#radio", Input), t("lim.f_radio"))
             l = self.query_one("#lado", Input).value.strip()
             lado = int(l) if l else None
             sal = self.query_one("#salida", Input).value.strip() or None
         except ValueError as e:
-            self.query_one("#estado", Static).update(f"[red]Error:[/red] {e}")
+            self.query_one("#estado", Static).update(f"[red]{t('com.error')}[/red] {e}")
             return
         self.corriendo = True
-        self.query_one("#go", Button).label = "Limpiando..."
-        n = datos.contar(ent)
-        self.query_one("#estado", Static).update(f"Leyendo {n:,} registros...")
+        self.query_one("#go", Button).label = t("lim.limpiando")
+        self.query_one("#estado", Static).update(t("lim.leyendo", n=datos.contar(ent)))
         self.run_worker(lambda: self._correr(ent, sal, radio, lado), thread=True, exclusive=True, group="limpiar")
 
     def _prog(self, f, txt=""):
@@ -80,16 +77,13 @@ class PanelLimpiador(Horizontal):
 
     def _fin(self, r, err):
         self.corriendo = False
-        self.query_one("#go", Button).label = "Limpiar"
+        self.query_one("#go", Button).label = t("lim.limpiar")
         st = self.query_one("#estado", Static)
         if err:
-            st.update(f"[red]Error:[/red] {err}")
+            st.update(f"[red]{t('com.error')}[/red] {err}")
             return
-        st.update(f"[b green]LIMPIEZA TERMINADA[/b green] en {r['segundos']:.1f}s\n"
-                  f"Entrada: {r['entrada']:,} estructuras\n"
-                  f"Quedan: [b]{r['quedan']:,}[/b]   descartadas: {r['descartadas']:,}   pares compatibles: {r['pares']:,}\n"
-                  f"Criterio: radio {r['radio']}, caja {r['lado']}x{r['lado']}\n"
-                  f"Salida: {r['salida']}\n\nSiguiente paso: pestana [b]3 Analizador[/b] (ya esta cargado).")
-        self.notify(f"Quedan {r['quedan']:,} de {r['entrada']:,}", title="Limpieza terminada")
+        st.update(t("lim.fin", s=r["segundos"], e=r["entrada"], q=r["quedan"], d=r["descartadas"], p=r["pares"],
+                    r=r["radio"], l=r["lado"], f=r["salida"]))
+        self.notify(t("lim.notif", q=r["quedan"], e=r["entrada"]), title=t("lim.notif_t"))
         if self.al_terminar:
             self.al_terminar(r["salida"])

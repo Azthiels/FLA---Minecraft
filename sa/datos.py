@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from sa import util
+from sa.i18n import t
 
 MAGIC = b"SAB1"
 VERSION_SAB = 1
@@ -84,10 +85,10 @@ def leer_sab(ruta):
     with open(p, "rb") as f:
         h = f.read(CABECERA)
     if len(h) < CABECERA or h[:4] != MAGIC:
-        raise ValueError(f"{p.name} no es un archivo .sab valido")
+        raise ValueError(t("err.no_sab", f=p.name))
     ver, rec, _ = struct.unpack("<III", h[4:])
     if ver != VERSION_SAB or rec != DTYPE.itemsize:
-        raise ValueError(f"{p.name}: version {ver} / registro {rec} no soportados")
+        raise ValueError(t("err.sab_version", f=p.name, v=ver, r=rec))
     n = (p.stat().st_size - CABECERA) // rec
     if n == 0:
         return np.zeros(0, DTYPE)
@@ -139,7 +140,7 @@ def leer(ruta, progreso=None):
     if p.suffix.lower() not in (EXT, ".jsonl"):
         p = r["datos"] if r["datos"].exists() else r["jsonl"]
     if not p.exists():
-        raise FileNotFoundError(f"No existe {p}")
+        raise FileNotFoundError(t("err.no_existe", f=p))
     meta = leer_meta(p)
     if p.suffix.lower() == EXT:
         arr = leer_sab(p)
