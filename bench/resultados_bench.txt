@@ -1,0 +1,25 @@
+Maquina: Windows-11-10.0.26200-SP0 | AMD64 Family 23 Model 24 Stepping 1, AuthenticAMD | nucleos logicos: 8 | python 3.14.7
+
+### Witch Hut  (version 26.3, estructura 3, radio 300,000, 8 hilos, 1 reps, mediana)
+         tiempo(s)         reg/s  guardadas  bioma consultado  RAM pico MB
+todas         1.29     1,066,346     10,906         1,373,391           32
+grupos        0.10    14,256,457        408            68,900           33
+  velocidad grupos/todas: 13.37x
+
+### Witch Hut 1.12  (version 1.12, estructura 3, radio 150,000, 8 hilos, 1 reps, mediana)
+         tiempo(s)         reg/s  guardadas  bioma consultado  RAM pico MB
+todas         1.57       218,800     11,243           343,350           32
+grupos        0.10     3,373,132        273            17,544           33
+  velocidad grupos/todas: 15.42x
+
+### Ocean Monument  (version 26.3, estructura 8, radio 150,000, 8 hilos, 1 reps, mediana)
+         tiempo(s)         reg/s  guardadas  bioma consultado  RAM pico MB
+todas         4.16        82,454     35,525           343,393           32
+grupos        0.04     9,513,409         92               668           33
+  velocidad grupos/todas: 115.38x
+
+### Escalado con hilos (Witch Hut 26.3, modo todas)
+  1 hilos: 1.25s  (274,465 reg/s)  speedup 1.00x
+  2 hilos: 0.69s  (497,257 reg/s)  speedup 1.81x
+  4 hilos: 0.39s  (874,721 reg/s)  speedup 3.19x
+  8 hilos: 0.27s  (1,264,966 reg/s)  speedup 4.61x

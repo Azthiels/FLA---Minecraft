@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+
+# binarios generados: si faltan, sa/nativo.py los compila solo (python build_lib.py)
+lib/
+
+# datos de escaneos y analisis (pesados, se regeneran)
+*.sab
+*.jsonl
+*.meta.json
+*.checkpoint.json
+*.grupos.json
+*.grupos.csv
+*.tmp
+structure.json
+
+# configuracion local y respaldo de la version anterior
+config.json
+_viejo/

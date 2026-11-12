@@ -1,0 +1,2 @@
+textual>=0.80
+numpy>=1.26
