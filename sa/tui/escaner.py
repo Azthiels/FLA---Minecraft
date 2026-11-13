@@ -6,7 +6,7 @@ from textual.app import ComposeResult
 from textual.containers import Grid, Horizontal, Vertical
 from textual.widgets import Button, Checkbox, DataTable, Input, Label, ProgressBar, Select, Static
 
-from sa import RAIZ, clima, config, estructuras, nativo, util
+from sa import clima, config, datos, estructuras, nativo, util
 from sa.escaner import Escaneo, ReanudarError, SalidaExisteError
 from sa.i18n import t
 from sa.tui.comunes import BiomasScreen, CajasScreen, entero, valor
@@ -43,6 +43,7 @@ class PanelEscaner(Horizontal):
         self.cajas = []          # [] = mundo completo
         self._mostradas = -1
         self.al_terminar = None  # callback(escaneo) que pone la App
+        self._salida_auto = ""   # ultimo nombre de salida propuesto (si el usuario lo cambia, no se pisa)
 
     def compose(self) -> ComposeResult:
         nucleos = os.cpu_count() or 1
@@ -64,7 +65,7 @@ class PanelEscaner(Horizontal):
                 yield _campo(t("esc.lado"), Input(value="16", id="lado", compact=True))
                 yield _campo(t("esc.hilos", n=nucleos), Input(value=str(nucleos), id="hilos", compact=True))
                 yield _campo(t("esc.lote"), Input(value=str(config.BATCH_SIZE), id="lote", compact=True))
-                yield _campo(t("esc.salida"), Input(value=str(RAIZ / "escaneo"), id="salida", compact=True), "span3")
+                yield _campo(t("esc.salida"), Input(value="", id="salida", compact=True), "span3")
                 yield Checkbox(t("esc.auto"), id="auto", compact=True, tooltip=t("esc.auto_tip"))
                 yield Checkbox(t("esc.sobrescribir"), id="sobrescribir", compact=True)
                 yield Checkbox(t("esc.clima"), value=config.CLIMA, id="clima", compact=True)
@@ -151,6 +152,28 @@ class PanelEscaner(Horizontal):
     def auto(self):
         return self.query_one("#auto", Checkbox).value
 
+    def _proponer_salida(self):
+        """Nombre de salida automatico: <estructura>_<seed>_<version> (en results/). No pisa uno escrito a mano."""
+        inp = self.query_one("#salida", Input)
+        if inp.value.strip() not in ("", self._salida_auto):
+            return
+        sid = self._sid()
+        partes = [nativo.nombre_estructura(sid) if sid is not None else "scan"]
+        texto = self.query_one("#seed", Input).value.strip()
+        if texto:
+            try:
+                partes.append(str(nativo.seed_firmada(nativo.parse_seed(texto))) if texto.lstrip("-").isdigit()
+                              else "".join(c if c.isalnum() or c in "-_" else "_" for c in texto)[:40])
+            except ValueError:
+                pass
+        partes.append(str(self._version()))
+        self._salida_auto = "_".join(partes)
+        inp.value = self._salida_auto
+
+    @on(Input.Changed, "#seed")
+    def _seed_cambio(self, _):
+        self._proponer_salida()
+
     # ---------- formulario ----------
     def _refrescar_estructuras(self):
         sel = self.query_one("#estructura", Select)
@@ -159,6 +182,7 @@ class PanelEscaner(Horizontal):
         self.biomas_sel = None
         self._etiquetas()
         self._refrescar_clima()
+        self._proponer_salida()
         self.query_one("#info", Static).update("" if opts else t("esc.sin_estructuras"))
 
     @on(Select.Changed, "#version")
@@ -179,6 +203,7 @@ class PanelEscaner(Horizontal):
             return
         self.biomas_sel = None
         self._refrescar_clima()
+        self._proponer_salida()
         caja = estructuras.caja(sid)
         self.query_one("#lado", Input).value = str(caja.lado)
         b = [n for _, n in nativo.biomas_validos(sid, self._version())]
@@ -286,7 +311,7 @@ class PanelEscaner(Horizontal):
             auto = self.auto and e.estado == "completado"
             sig = t("esc.sig_auto") if auto else (t("esc.sig_3") if e.modo == "grupos" else t("esc.sig_2"))
             self._mensaje(t("esc.resumen_fin", c=color, tit=titulo, n=e.escritas, modo=t(f"modo.{e.modo}"), t=total_t,
-                            r=r["regiones"], rt=r["regiones_total"], f=r["archivos"]["datos"], sig=sig))
+                            r=r["regiones"], rt=r["regiones_total"], f=datos.mostrar(r["archivos"]["datos"]), sig=sig))
             if not auto:                          # en modo auto el aviso llega al final de la cadena
                 self.app.bell()
                 self.notify(f"{msg}\n{e.rutas['datos']}", title=titulo.split(" (")[0].title(), timeout=60, severity=sev)

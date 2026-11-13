@@ -153,6 +153,7 @@ def analizar(entrada, radio=None, lado=None, minimo=2, orden="distancia", progre
     t0 = time.time()
     prog = progreso or (lambda f, txt="": None)
     prog(0.0, "leyendo")
+    entrada = datos.encontrar(entrada)
     arr, meta = datos.leer(entrada, progreso=lambda f: prog(0.3 * f, "leyendo"))
     r, l, off, caja = parametros(meta, radio, lado)
     x = np.asarray(arr["x"]); z = np.asarray(arr["z"]); b = np.asarray(arr["b"])
@@ -275,7 +276,7 @@ def _ruta_json(ruta):
     """El .grupos.json de ese archivo; si no hay, el de su version limpia (<base>_limpio), que es lo que se analiza
     cuando el escaneo fue en modo "todas"."""
     from pathlib import Path
-    p = Path(ruta)
+    p = datos.encontrar(ruta)
     if p.name.endswith(".grupos.json"):
         return p
     j = datos.rutas(p)["grupos"]

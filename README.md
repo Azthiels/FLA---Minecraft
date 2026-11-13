@@ -37,7 +37,8 @@ The first launch compiles the native library (`lib/`). If you have `gcc`, `clang
 installs `ziglang` through pip and compiles with it automatically. This takes about 2 minutes, only once.
 
 Then: type your seed, pick the version and the structure, tick **Auto mode** and press **Start**.
-When it finishes, tab **3 Analyzer** shows the best groups. See the **[step-by-step guide](docs/GUIDE.md)** for
+When it finishes, tab **3 Analyzer** shows the best groups. Everything is saved in the `results/` folder, and
+**Load saved analysis...** reopens any previous result instantly. See the **[step-by-step guide](docs/GUIDE.md)** for
 everything else.
 
 Straight from the command line:

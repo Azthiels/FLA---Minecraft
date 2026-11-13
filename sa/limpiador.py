@@ -84,6 +84,9 @@ def limpiar(entrada, salida=None, radio=None, lado=None, progreso=None):
     t0 = time.time()
     prog = progreso or (lambda f, txt="": None)
     prog(0.0, "leyendo")
+    entrada = datos.encontrar(entrada)
+    if salida is not None:
+        salida = datos.resolver(salida)
     arr, meta = datos.leer(entrada, progreso=lambda f: prog(0.6 * f, "leyendo"))
     r, l, off, caja = parametros(meta, radio, lado)
     prog(0.6, "buscando vecinas")

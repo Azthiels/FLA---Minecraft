@@ -17,3 +17,6 @@ structure.json
 # configuracion local y respaldo de la version anterior
 config.json
 _viejo/
+
+# escaneos y analisis del usuario
+results/

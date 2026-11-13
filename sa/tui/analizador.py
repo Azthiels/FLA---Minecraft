@@ -6,10 +6,10 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Input, Label, ProgressBar, Select, Static
 
-from sa import config, analizador
+from sa import RESULTADOS, config, analizador, datos
 from sa.analizador import nombre_tam
 from sa.i18n import t
-from sa.tui.comunes import entero
+from sa.tui.comunes import elegir_archivo, entero
 
 MEJORES_POR_TIPO = 3     # opciones que muestra cada recuadro de abajo (el JSON guarda 5 por tipo)
 
@@ -48,7 +48,7 @@ class PanelAnalizador(Horizontal):
             yield Select([(t("ana.o_dist"), "distancia"), (t("ana.o_margen"), "margen")],
                          value="distancia", allow_blank=False, id="orden")
             yield Button(t("ana.analizar"), variant="success", id="go")
-            yield Button(t("ana.cargar"), id="cargar", disabled=True)
+            yield Button(t("ana.cargar"), id="cargar")
             yield Static("", id="guardado", classes="info")
             yield Static(t("ana.ayuda"), classes="info")
         with Vertical(classes="derecha"):
@@ -66,7 +66,7 @@ class PanelAnalizador(Horizontal):
 
     # ---------- API para la App (modo auto) ----------
     def cargar(self, ruta):
-        self.query_one("#entrada", Input).value = str(ruta)
+        self.query_one("#entrada", Input).value = datos.mostrar(ruta) if str(ruta) else ""
 
     def prefijar(self, radio=None, lado=None):
         if radio is not None:
@@ -90,7 +90,6 @@ class PanelAnalizador(Horizontal):
                 info = analizador.guardado(ent)
             except (OSError, ValueError):
                 info = None
-        self.query_one("#cargar", Button).disabled = info is None
         txt = ""
         if info:
             txt = t("ana.guardado", limpio=t("ana.de_limpio") if info["limpio"] else "",
@@ -101,9 +100,33 @@ class PanelAnalizador(Horizontal):
 
     @on(Button.Pressed, "#cargar")
     def cargar_guardado(self):
+        """Abre el explorador de archivos del sistema (en un hilo: el dialogo bloquea) y carga lo elegido."""
         ent = self.query_one("#entrada", Input).value.strip()
+        inicial = datos.encontrar(ent).parent if ent else RESULTADOS
+        tipos = [(t("ana.tipo_json"), "*.grupos.json"), (t("ana.tipo_sab"), "*.sab"), (t("ana.tipo_todos"), "*.*")]
+
+        def hilo():
+            try:
+                ruta = elegir_archivo(t("ana.dialogo_t"), inicial, tipos)
+            except Exception as e:                       # sin tkinter / sin escritorio
+                self.app.call_from_thread(self.notify, t("ana.sin_dialogo", e=e), severity="warning", timeout=15)
+                return
+            if ruta:
+                self.app.call_from_thread(self.cargar_archivo, ruta)
+        self.run_worker(hilo, thread=True, exclusive=True, group="dialogo")
+
+    def cargar_archivo(self, ruta):
+        """Carga el analisis de un archivo elegido (.grupos.json, o .sab/.jsonl con su analisis guardado).
+        Si el escaneo todavia no tiene analisis, lo deja listo en 'Archivo' para analizar."""
+        p = Path(ruta)
+        datos_p = datos.rutas(p)["datos"] if p.name.endswith(".grupos.json") else p
+        if datos_p.exists() or p.suffix.lower() in (".sab", ".jsonl"):
+            self.cargar(datos_p if datos_p.exists() else p)
+        if analizador.guardado(p) is None:
+            self.notify(t("ana.sin_analisis", f=p.name), severity="warning", timeout=10)
+            return
         try:
-            r = analizador.cargar_resultado(ent)
+            r = analizador.cargar_resultado(p)
         except (OSError, ValueError, KeyError) as e:
             self.query_one("#resumen", Static).update(f"[red]{t('ana.no_cargar')}[/red] {e}")
             return
@@ -116,7 +139,7 @@ class PanelAnalizador(Horizontal):
             return
         try:
             ent = self.query_one("#entrada", Input).value.strip()
-            if not ent or not Path(ent).exists():
+            if not ent or not datos.encontrar(ent).exists():
                 raise ValueError(t("com.no_existe", ruta=ent))
             radio = entero(self.query_one("#radio", Input), t("ana.f_radio"))
             l = self.query_one("#lado", Input).value.strip()
@@ -178,7 +201,7 @@ class PanelAnalizador(Horizontal):
         self.query_one("#resumen", Static).update(t(
             "ana.resumen", est=r["estructura"], seed=r["seed"], ver=r["version"], r=r["radio"], l=r["caja"]["lado"],
             n=r["estructuras_leidas"], conteo=_conteo(r), teo=r["maximo_teorico"] or "?", s=r["segundos"], rec=rec,
-            aviso=aviso, f=r.get("archivos", {}).get("json", "")))
+            aviso=aviso, f=datos.mostrar(r.get("archivos", {}).get("json", ""))))
         tb = self.query_one("#tabla", DataTable)
         tb.clear()
         self._filas = r["grupos"][:config.TOP_GRUPOS]

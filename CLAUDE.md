@@ -5,6 +5,11 @@ Proyecto personal de Azthiels (Cordoba, Argentina, UTC-3). Comunicacion en espan
 El `README.es.md` tiene la documentacion tecnica (arquitectura, formato, modo grupos). Leelo antes de tocar el motor.
 Publico (GitHub): `README.md` (ingles) y `docs/GUIDE.md` (guia paso a paso en ingles, capturas en `docs/img/*.svg`).
 
+**Resultados:** los escaneos/analisis van a `results/` (junto a main.py, gitignored): `datos.resolver()` para
+salidas, `datos.encontrar()` para entradas (acepta nombre suelto o `results/x`), `datos.mostrar()` para mostrar
+rutas relativas en la TUI. Nombre de salida automatico `<estructura>_<seed>_<version>`. "Load saved analysis..."
+abre el dialogo nativo (tkinter, en un hilo) en `results/`. Los archivos viejos en la raiz siguen ahi.
+
 **Idiomas:** la interfaz es bilingue (en por defecto, es opcional). Todo texto visible nuevo va en `sa/i18n.py`
 (`t("clave")`, con columna en ingles y en espanol); nunca strings sueltos en la TUI ni en mensajes de error.
 El idioma se fija antes de importar `sa.tui.app` (los atajos se arman al importar). El usuario usa `--lang es`.

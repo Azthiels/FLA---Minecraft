@@ -34,6 +34,25 @@ def entero(inp: Input, nombre: str, minimo=1):
     return v
 
 
+def elegir_archivo(titulo, carpeta, tipos):
+    """Dialogo nativo 'Abrir archivo' del sistema (explorador de Windows, etc.) via tkinter.
+    Bloquea hasta que el usuario elige o cancela: llamarlo desde un hilo, no desde el loop de Textual.
+    Devuelve la ruta elegida o None. Lanza una excepcion si no hay tkinter o escritorio."""
+    import tkinter as tk
+    from tkinter import filedialog
+    from pathlib import Path
+    carpeta = Path(carpeta)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    raiz = tk.Tk()
+    try:
+        raiz.withdraw()
+        raiz.attributes("-topmost", True)          # que el dialogo aparezca delante de la terminal
+        ruta = filedialog.askopenfilename(parent=raiz, title=titulo, initialdir=str(carpeta), filetypes=tipos)
+    finally:
+        raiz.destroy()
+    return ruta or None
+
+
 class BiomasScreen(ModalScreen):
     """Ventana para elegir en que biomas buscar. Solo lista los biomas donde la estructura puede aparecer."""
     CSS = """

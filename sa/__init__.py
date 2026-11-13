@@ -12,4 +12,5 @@
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+RESULTADOS = RAIZ / "results"      # aca van los escaneos y analisis cuando la salida es un nombre o ruta relativa
 __version__ = "2.0"

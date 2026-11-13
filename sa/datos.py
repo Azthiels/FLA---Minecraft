@@ -24,6 +24,36 @@ DTYPE = np.dtype([("x", "<i4"), ("z", "<i4"), ("b", "<i4")])
 EXT = ".sab"
 
 
+def resolver(nombre) -> Path:
+    """Ruta de salida: absoluta tal cual; un nombre o ruta relativa va dentro de la carpeta results/."""
+    from sa import RESULTADOS
+    p = Path(str(nombre).strip()).expanduser()
+    return p if p.is_absolute() else RESULTADOS / p
+
+
+def encontrar(ruta) -> Path:
+    """Ruta de entrada: si existe tal cual, esa; si no, la busca dentro de results/ (acepta 'nombre.sab' o
+    'results/nombre.sab', como la muestra la interfaz)."""
+    from sa import RESULTADOS
+    p = Path(str(ruta).strip()).expanduser()
+    if p.exists() or p.is_absolute():
+        return p
+    for base in (RESULTADOS, RESULTADOS.parent):
+        if (base / p).exists():
+            return base / p
+    return p
+
+
+def mostrar(ruta) -> str:
+    """Ruta para mostrar en la interfaz: relativa a la carpeta del programa si esta dentro (results/x.sab)."""
+    from sa import RESULTADOS
+    p = Path(ruta)
+    try:
+        return str(p.resolve().relative_to(RESULTADOS.parent.resolve()))
+    except (ValueError, OSError):
+        return str(p)
+
+
 def cabecera() -> bytes:
     return MAGIC + struct.pack("<III", VERSION_SAB, DTYPE.itemsize, 0)
 

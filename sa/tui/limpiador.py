@@ -6,7 +6,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Input, Label, ProgressBar, Static
 
-from sa import RAIZ, config, datos, limpiador
+from sa import config, datos, limpiador
 from sa.i18n import t
 from sa.tui.comunes import entero
 
@@ -20,7 +20,7 @@ class PanelLimpiador(Horizontal):
     def compose(self) -> ComposeResult:
         with Vertical(classes="form"):
             yield Label(t("lim.entrada"))
-            yield Input(value=str(RAIZ / "escaneo.sab"), id="entrada")
+            yield Input(value="", id="entrada")
             yield Label(t("lim.radio"))
             yield Input(value=str(config.RADIO_ACTIVACION), id="radio")
             yield Label(t("lim.lado"))
@@ -34,7 +34,7 @@ class PanelLimpiador(Horizontal):
             yield ProgressBar(total=100, show_eta=False, id="bar")
 
     def cargar(self, ruta):
-        self.query_one("#entrada", Input).value = str(ruta)
+        self.query_one("#entrada", Input).value = datos.mostrar(ruta)
 
     def prefijar(self, radio=None, lado=None):
         if radio is not None:
@@ -51,7 +51,7 @@ class PanelLimpiador(Horizontal):
             return
         try:
             ent = self.query_one("#entrada", Input).value.strip()
-            if not ent or not Path(ent).exists():
+            if not ent or not datos.encontrar(ent).exists():
                 raise ValueError(t("com.no_existe", ruta=ent))
             radio = entero(self.query_one("#radio", Input), t("lim.f_radio"))
             l = self.query_one("#lado", Input).value.strip()
@@ -62,7 +62,7 @@ class PanelLimpiador(Horizontal):
             return
         self.corriendo = True
         self.query_one("#go", Button).label = t("lim.limpiando")
-        self.query_one("#estado", Static).update(t("lim.leyendo", n=datos.contar(ent)))
+        self.query_one("#estado", Static).update(t("lim.leyendo", n=datos.contar(datos.encontrar(ent))))
         self.run_worker(lambda: self._correr(ent, sal, radio, lado), thread=True, exclusive=True, group="limpiar")
 
     def _prog(self, f, txt=""):
@@ -83,7 +83,7 @@ class PanelLimpiador(Horizontal):
             st.update(f"[red]{t('com.error')}[/red] {err}")
             return
         st.update(t("lim.fin", s=r["segundos"], e=r["entrada"], q=r["quedan"], d=r["descartadas"], p=r["pares"],
-                    r=r["radio"], l=r["lado"], f=r["salida"]))
+                    r=r["radio"], l=r["lado"], f=datos.mostrar(r["salida"])))
         self.notify(t("lim.notif", q=r["quedan"], e=r["entrada"]), title=t("lim.notif_t"))
         if self.al_terminar:
             self.al_terminar(r["salida"])

@@ -59,7 +59,7 @@ Fill in the options box:
 | **Activation radius** | 128 blocks: mobs only spawn within 128 blocks of a player. |
 | **Box side** | Size of the structure's spawning box, filled in automatically (9 for Witch Huts). Approximate for some structures: a note below tells you. |
 | **Threads** | CPU threads to use. Defaults to all of them. |
-| **Output** | Base name of the result files. |
+| **Output name** | Base name of the result files, saved in the **`results/` folder** next to `main.py`. It is filled in for you from the structure, seed and version (for example `swamp_hut_123456789_26.3`), so scans of different seeds never overwrite each other. Type your own name if you prefer; FLA will not change it. |
 | **Auto mode** | When the scan finishes, clean (if needed) and analyze automatically. Recommended. |
 | **Overwrite previous output** | Start from zero even if there is a previous scan with that name. |
 | **1.18+ climate prefilter** | Exact speed-up for 1.18 and newer. Leave it on. |
@@ -105,9 +105,11 @@ What the numbers mean:
   the 128-block radius. Small margins (below 1) work only if you stand exactly on that block.
 - **Dist. 0,0:** how far the spot is from the world origin.
 
-**Loading a previous analysis.** Every analysis is saved next to the data (`<name>.grupos.json`, a few hundred KB).
-When you pick a file that already has one, **Load saved analysis** becomes available and opens it in about a second
-instead of recalculating. If the data changed after that analysis, FLA tells you.
+**Loading a previous analysis.** Every analysis is saved in `results/` next to its scan (`<name>.grupos.json`, a
+few hundred KB). Press **Load saved analysis...**: the file explorer opens in the `results/` folder; pick a
+`.grupos.json` (or the `.sab` of a scan) and it is loaded at once, in about a second, without recalculating. If you
+pick a scan that has not been analyzed yet, it is placed in the **File** box so you only have to press **Analyze**.
+If the data changed after the saved analysis, FLA tells you.
 
 ![Load saved analysis](img/6-load-saved.svg)
 
@@ -167,7 +169,8 @@ Structure ids:
 | 26 | Abandoned Camp | Overworld |
 
 ## 8. Files FLA creates
-For an output name `witch_huts`:
+Everything goes to the `results/` folder next to `main.py` (an absolute output path is used as is). In the File boxes
+you can type just the name (`witch_huts.sab`) or `results/witch_huts.sab`. For an output name `witch_huts`:
 
 | File | Content |
 |---|---|

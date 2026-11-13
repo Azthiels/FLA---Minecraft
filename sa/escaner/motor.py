@@ -68,7 +68,7 @@ class Escaneo:
         # prefiltro de clima: no cambia resultados, asi que no forma parte de la identidad (se puede alternar al reanudar)
         self.clima_pedido = config.CLIMA if clima is None else bool(clima)
         self.clima = self.clima_pedido and clima_mod.disponible(sid, version)
-        self.rutas = datos.rutas(salida)
+        self.rutas = datos.rutas(datos.resolver(salida))
         self.hilos = max(1, int(hilos or os.cpu_count() or 1))
         self.lote = max(1, int(lote or config.BATCH_SIZE))
         self.T = max(1, int(tile or config.TILE_REGIONS))
